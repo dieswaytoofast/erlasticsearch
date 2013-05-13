@@ -8,7 +8,7 @@
 %%% a copy of the New BSD license with this software. If not, it can be
 %%% retrieved from: http://www.opensource.org/licenses/bsd-license.php
 %%%-------------------------------------------------------------------
--module(erlastic_search_SUITE).
+-module(erlasticsearch_SUITE).
 -author('Mahesh Paolini-Subramanya <mahesh@dieswaytoofast.com>').
 
 -include_lib("proper/include/proper.hrl").
@@ -69,7 +69,7 @@ all() ->
 t_insert(_) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                {ok, Response} = erlastic_search:insert_doc(?TEST_INDEX, ?TEST_TYPE, 
+                {ok, Response} = erlasticsearch:insert_doc(?TEST_INDEX, ?TEST_TYPE, 
                                                             BX, json_document(X)),
                 ct:pal("Insert:~p~n", [Response]),
                 case Response#restResponse.status of
@@ -82,7 +82,7 @@ t_insert(_) ->
 t_get(_) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                {ok, Response} = erlastic_search:get_doc(?TEST_INDEX, ?TEST_TYPE, BX),
+                {ok, Response} = erlasticsearch:get_doc(?TEST_INDEX, ?TEST_TYPE, BX),
                 ct:pal("Get:~p~n", [Response]),
                 200 = Response#restResponse.status
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
@@ -90,7 +90,7 @@ t_get(_) ->
 t_delete(_) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                {ok, Response} = erlastic_search:delete_doc(?TEST_INDEX, ?TEST_TYPE, BX),
+                {ok, Response} = erlasticsearch:delete_doc(?TEST_INDEX, ?TEST_TYPE, BX),
                 ct:pal("Delete:~p~n", [Response]),
                 200 = Response#restResponse.status
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
@@ -137,7 +137,7 @@ start() ->
     application:start(sasl),
     application:start(bstr),
     application:start(jsx),
-    application:start(erlastic_search).
+    application:start(erlasticsearch).
 
 stop() ->
     ok.

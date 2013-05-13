@@ -8,12 +8,12 @@
 %%% a copy of the New BSD license with this software. If not, it can be
 %%% retrieved from: http://www.opensource.org/licenses/bsd-license.php
 %%%-------------------------------------------------------------------
--module(erlastic_search).
+-module(erlasticsearch).
 -author('Mahesh Paolini-Subramanya <mahesh@dieswaytoofast.com>').
 
 -behaviour(gen_server).
 
--include("erlastic_search.hrl").
+-include("erlasticsearch.hrl").
 
 %% API
 -export([start/0, stop/0]).
@@ -41,12 +41,12 @@
 %% @doc Start the application and all its dependencies.
 -spec start() -> ok.
 start() ->
-    util:start_deps(?APP).
+    d_util:start_deps(?APP).
 
 %% @doc Stop the application and all its dependencies.
 -spec stop() -> ok.
 stop() ->
-    util:stop_deps(?APP).
+    d_util:stop_deps(?APP).
 
 %% @doc Get the health of the ElasticSearch cluster
 -spec health() -> response().

@@ -8,9 +8,9 @@
 %%% a copy of the New BSD license with this software. If not, it can be
 %%% retrieved from: http://www.opensource.org/licenses/bsd-license.php
 %%%-------------------------------------------------------------------
-{application, erlastic_search,
+{application, erlasticsearch,
  [
-  {description, "thrift based elastic_search"},
+  {description, "thrift based elasticsearch"},
   {vsn, "0.1.0"},
   {registered, []},
   {applications, [
@@ -22,6 +22,6 @@
                   bstr,
                   lager
                  ]},
-  {mod, {erlastic_search_app, []}},
+  {mod, {erlasticsearch_app, []}},
   {env, []}
  ]}.

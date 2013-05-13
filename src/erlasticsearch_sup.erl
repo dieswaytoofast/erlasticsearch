@@ -1,14 +1,14 @@
 %%%-------------------------------------------------------------------
 %%% @author Mahesh Paolini-Subramanya <mahesh@dieswaytoofast.com>
 %%% @copyright (C) 2013 Mahesh Paolini-Subramanya
-%%% @doc Root Supervisor for erlastic_search
+%%% @doc Root Supervisor for erlasticsearch
 %%% @end
 %%%
 %%% This source file is subject to the New BSD License. You should have received
 %%% a copy of the New BSD license with this software. If not, it can be
 %%% retrieved from: http://www.opensource.org/licenses/bsd-license.php
 %%%-------------------------------------------------------------------
--module(erlastic_search_sup).
+-module(erlasticsearch_sup).
 -author('Mahesh Paolini-Subramanya <mahesh@dieswaytoofast.com>').
 
 -behaviour(supervisor).
@@ -30,7 +30,7 @@
 
 -spec start_link() -> startlink_ret().
 start_link() ->
-    lager:debug("Starting erlastic_search root supervisor (~s)~n", [?SERVER]),
+    lager:debug("Starting erlasticsearch root supervisor (~s)~n", [?SERVER]),
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 -spec init(Args :: term()) -> {ok, {{RestartStrategy :: supervisor:strategy(), MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},
@@ -41,4 +41,4 @@ init([]) ->
     MaxSecondsBetweenRestarts = 60,
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
-    {ok, {SupFlags, [?WORKER(permanent, erlastic_search, [])]}}.
+    {ok, {SupFlags, [?WORKER(permanent, erlasticsearch, [])]}}.

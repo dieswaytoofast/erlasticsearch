@@ -1,4 +1,4 @@
-APPLICATION := erlastic_search
+APPLICATION := erlasticsearch
 
 ERL := erl
 EPATH := -pa ebin -pz deps/*/ebin
