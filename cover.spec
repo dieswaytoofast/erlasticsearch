@@ -1,1 +1,1 @@
-{incl_app, erlastic_search, details}.
+{incl_app, erlasticsearch, details}.

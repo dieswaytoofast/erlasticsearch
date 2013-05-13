@@ -20,10 +20,20 @@
 -export([start_link/0, start_link/1]).
 
 %% ElasticSearch
+% Tests
+-export([is_index/1]).
+
+% Status
 -export([health/0]).
+
+% CRUD
+-export([create_index/1, create_index/2]).
+-export([delete_index/1]).
 -export([insert_doc/4]).
 -export([get_doc/3]).
 -export([delete_doc/3]).
+
+-export([is_200/1, is_200_or_201/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -53,6 +63,26 @@ stop() ->
 health() ->
     gen_server:call(?MODULE, {health}).
 
+%% @equiv create_index(Index, <<>>)
+-spec create_index(index()) -> response().
+create_index(Index) ->
+    create_index(Index, <<>>).
+
+%% @doc Create an index in the the ElasticSearch cluster
+-spec create_index(index(), doc()) -> response().
+create_index(Index, Doc) ->
+    gen_server:call(?MODULE, {create_index, Index, Doc}).
+
+%% @doc Delete an index in the the ElasticSearch cluster
+-spec delete_index(index()) -> response().
+delete_index(Index) -> 
+    gen_server:call(?MODULE, {delete_index, Index}).
+
+%% @doc Check if an index exists in the the ElasticSearch cluster
+-spec is_index(index()) -> boolean().
+is_index(Index) -> 
+    gen_server:call(?MODULE, {is_index, Index}).
+
 %% @doc Insert a doc into the the ElasticSearch cluster
 -spec insert_doc(index(), type(), id(), doc()) -> response().
 insert_doc(Index, Type, Id, Doc) ->
@@ -81,7 +111,6 @@ start_link(StartOptions) ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [StartOptions], []).
 
 init([StartOptions]) ->
-    lager:debug("S:~p~n", [StartOptions]),
     Connection = connection(StartOptions),
     {ok, #state{connection = Connection}}.
 
@@ -89,6 +118,23 @@ handle_call({Request = health}, _From, State = #state{connection = Connection0})
     RestRequest = rest_request(Request, undefined),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({Request = create_index, Index, Doc}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request(Request, {Index, Doc}),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({Request = delete_index, Index}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request(Request, {Index}),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({Request = is_index, Index}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request(Request, {Index}),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    % Check if the result is 200 (true) or 404 (false)
+    Result = is_200(RestResponse),
+    {reply, Result, State#state{connection = Connection1}};
 
 handle_call({Request = insert_doc, Index, Type, Id, Doc}, _From, State = #state{connection = Connection0}) ->
     RestRequest = rest_request(Request, {Index, Type, Id, Doc}),
@@ -146,6 +192,24 @@ process_request(Connection, Request) ->
 rest_request(health, _) ->
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = ?HEALTH};
+
+rest_request(create_index, {Index, Doc}) when is_binary(Index),
+                                              is_binary(Doc) ->
+    Uri = bstr:join([Index], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_PUT,
+                 uri = Uri,
+                 body = Doc};
+
+rest_request(delete_index, {Index}) when is_binary(Index) ->
+    Uri = bstr:join([Index], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_DELETE,
+                 uri = Uri};
+
+rest_request(is_index, {Index}) when is_binary(Index) ->
+    Uri = bstr:join([Index], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_HEAD,
+                 uri = Uri};
+
 rest_request(insert_doc, {Index, Type, Id, Doc}) when is_binary(Index),
                                                       is_binary(Type),
                                                       is_binary(Id),
@@ -154,6 +218,7 @@ rest_request(insert_doc, {Index, Type, Id, Doc}) when is_binary(Index),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri,
                  body = Doc};
+
 rest_request(get_doc, {Index, Type, Id}) when is_binary(Index),
                                                    is_binary(Type),
                                                    is_binary(Id) ->
@@ -178,4 +243,18 @@ get_env(Key, Default) ->
             Value;
         _ ->
             Default
+    end.
+-spec is_200(response()) -> boolean().
+is_200({ok, Response}) ->
+    case Response#restResponse.status of
+        200 -> true;
+        _ -> false
+    end.
+
+-spec is_200_or_201(response()) -> boolean().
+is_200_or_201({ok, Response}) ->
+    case Response#restResponse.status of
+        200 -> true;
+        201 -> true;
+        _ -> false
     end.
