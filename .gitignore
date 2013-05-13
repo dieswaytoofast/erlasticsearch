@@ -1,0 +1,6 @@
+deps
+ebin/*.beam
+ebin/*.app
+logs
+log
+test/*.beam
