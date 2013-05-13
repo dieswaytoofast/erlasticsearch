@@ -20,7 +20,7 @@
 -type connection()      :: any().
 -type index()           :: binary().
 -type type()            :: binary().
--type id()              :: binary().
+-type id()              :: binary() | undefined.
 -type doc()             :: binary().
 -type params()          :: [tuple()].
 

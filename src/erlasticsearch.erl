@@ -106,8 +106,7 @@ get_doc(Index, Type, Id, Params) ->
 %% @equiv delete_doc(Index, Type, Id, []).
 -spec delete_doc(index(), type(), id()) -> response().
 delete_doc(Index, Type, Id) ->
-    gen_server:call(?MODULE, {delete_doc, Index, Type, Id}).
-
+    delete_doc(Index, Type, Id, []).
 %% @doc Delete a doc from the the ElasticSearch cluster
 -spec delete_doc(index(), type(), id(), params()) -> response().
 delete_doc(Index, Type, Id, Params) ->
@@ -225,13 +224,22 @@ rest_request(is_index, {Index}) when is_binary(Index) ->
     #restRequest{method = ?elasticsearch_Method_HEAD,
                  uri = Uri};
 
+rest_request(insert_doc, {Index, Type, undefined, Doc, Params}) when is_binary(Index),
+                                                      is_binary(Type),
+                                                      is_binary(Doc),
+                                                      is_list(Params) ->
+    Uri = make_uri([Index, Type], Params),
+    #restRequest{method = ?elasticsearch_Method_POST,
+                 uri = Uri,
+                 body = Doc};
+
 rest_request(insert_doc, {Index, Type, Id, Doc, Params}) when is_binary(Index),
                                                       is_binary(Type),
                                                       is_binary(Id),
                                                       is_binary(Doc),
                                                       is_list(Params) ->
     Uri = make_uri([Index, Type, Id], Params),
-    #restRequest{method = ?elasticsearch_Method_POST,
+    #restRequest{method = ?elasticsearch_Method_PUT,
                  uri = Uri,
                  body = Doc};
 
