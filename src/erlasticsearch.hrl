@@ -22,6 +22,7 @@
 -type type()            :: binary().
 -type id()              :: binary().
 -type doc()             :: binary().
+-type params()          :: [tuple()].
 
 %% Defaults
 -define(DEFAULT_THRIFT_HOST, "localhost").

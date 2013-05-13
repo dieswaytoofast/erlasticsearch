@@ -29,9 +29,9 @@
 % CRUD
 -export([create_index/1, create_index/2]).
 -export([delete_index/1]).
--export([insert_doc/4]).
--export([get_doc/3]).
--export([delete_doc/3]).
+-export([insert_doc/4, insert_doc/5]).
+-export([get_doc/3, get_doc/4]).
+-export([delete_doc/3, delete_doc/4]).
 
 -export([is_200/1, is_200_or_201/1]).
 
@@ -83,20 +83,35 @@ delete_index(Index) ->
 is_index(Index) -> 
     gen_server:call(?MODULE, {is_index, Index}).
 
-%% @doc Insert a doc into the the ElasticSearch cluster
+%% @equiv insert_doc(Index, Type, Id, Doc, []).
 -spec insert_doc(index(), type(), id(), doc()) -> response().
 insert_doc(Index, Type, Id, Doc) ->
-    gen_server:call(?MODULE, {insert_doc, Index, Type, Id, Doc}).
+    insert_doc(Index, Type, Id, Doc, []).
 
-%% @doc Get a doc from the the ElasticSearch cluster
+%% @doc Insert a doc into the the ElasticSearch cluster
+-spec insert_doc(index(), type(), id(), doc(), params()) -> response().
+insert_doc(Index, Type, Id, Doc, Params) ->
+    gen_server:call(?MODULE, {insert_doc, Index, Type, Id, Doc, Params}).
+
+%% @equiv get_doc(Index, Type, Id, []).
 -spec get_doc(index(), type(), id()) -> response().
 get_doc(Index, Type, Id) ->
-    gen_server:call(?MODULE, {get_doc, Index, Type, Id}).
+    get_doc(Index, Type, Id, []).
 
-%% @doc Delete a doc from the the ElasticSearch cluster
+%% @doc Get a doc from the the ElasticSearch cluster
+-spec get_doc(index(), type(), id(), params()) -> response().
+get_doc(Index, Type, Id, Params) ->
+    gen_server:call(?MODULE, {get_doc, Index, Type, Id, Params}).
+
+%% @equiv delete_doc(Index, Type, Id, []).
 -spec delete_doc(index(), type(), id()) -> response().
 delete_doc(Index, Type, Id) ->
     gen_server:call(?MODULE, {delete_doc, Index, Type, Id}).
+
+%% @doc Delete a doc from the the ElasticSearch cluster
+-spec delete_doc(index(), type(), id(), params()) -> response().
+delete_doc(Index, Type, Id, Params) ->
+    gen_server:call(?MODULE, {delete_doc, Index, Type, Id, Params}).
 
 
 %% ------------------------------------------------------------------
@@ -136,18 +151,18 @@ handle_call({Request = is_index, Index}, _From, State = #state{connection = Conn
     Result = is_200(RestResponse),
     {reply, Result, State#state{connection = Connection1}};
 
-handle_call({Request = insert_doc, Index, Type, Id, Doc}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Index, Type, Id, Doc}),
+handle_call({Request = insert_doc, Index, Type, Id, Doc, Params}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request(Request, {Index, Type, Id, Doc, Params}),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
-handle_call({Request = get_doc, Index, Type, Id}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Index, Type, Id}),
+handle_call({Request = get_doc, Index, Type, Id, Params}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request(Request, {Index, Type, Id, Params}),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
-handle_call({Request = delete_doc, Index, Type, Id}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Index, Type, Id}),
+handle_call({Request = delete_doc, Index, Type, Id, Params}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request(Request, {Index, Type, Id, Params}),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
@@ -174,7 +189,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 %% @doc Build a new connection
--spec connection([tuple()]) -> connection().
+-spec connection(params()) -> connection().
 connection(StartOptions) ->
     ThriftHost = get_env(thrift_host, ?DEFAULT_THRIFT_HOST),
     ThriftPort = get_env(thrift_port, ?DEFAULT_THRIFT_PORT),
@@ -210,29 +225,42 @@ rest_request(is_index, {Index}) when is_binary(Index) ->
     #restRequest{method = ?elasticsearch_Method_HEAD,
                  uri = Uri};
 
-rest_request(insert_doc, {Index, Type, Id, Doc}) when is_binary(Index),
+rest_request(insert_doc, {Index, Type, Id, Doc, Params}) when is_binary(Index),
                                                       is_binary(Type),
                                                       is_binary(Id),
-                                                      is_binary(Doc) ->
-    Uri = bstr:join([Index, Type, Id], <<"/">>),
+                                                      is_binary(Doc),
+                                                      is_list(Params) ->
+    Uri = make_uri([Index, Type, Id], Params),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri,
                  body = Doc};
 
-rest_request(get_doc, {Index, Type, Id}) when is_binary(Index),
+rest_request(get_doc, {Index, Type, Id, Params}) when is_binary(Index),
                                                    is_binary(Type),
-                                                   is_binary(Id) ->
-    Uri = bstr:join([Index, Type, Id], <<"/">>),
+                                                   is_binary(Id),
+                                                   is_list(Params) ->
+    Uri = make_uri([Index, Type, Id], Params),
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri};
 
-rest_request(delete_doc, {Index, Type, Id}) when is_binary(Index),
+rest_request(delete_doc, {Index, Type, Id, Params}) when is_binary(Index),
                                                    is_binary(Type),
-                                                   is_binary(Id) ->
-    Uri = bstr:join([Index, Type, Id], <<"/">>),
+                                                   is_binary(Id),
+                                                   is_list(Params) ->
+    Uri = make_uri([Index, Type, Id], Params),
     #restRequest{method = ?elasticsearch_Method_DELETE,
                  uri = Uri}.
 
+%% @doc Make a complete URI based on the tokens and props
+make_uri(BaseList, PropList) ->
+    Base = bstr:join(BaseList, <<"/">>),
+    case PropList of
+        [] ->
+            Base;
+        PropList ->
+            Props = d_uri:uri_params_encode(PropList),
+            bstr:join([Base, Props], <<"?">>)
+    end.
 
 %% @doc The official way to get a value from this application's env.
 %%      Will return Default if that key is unset.
