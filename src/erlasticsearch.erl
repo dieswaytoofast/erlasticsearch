@@ -17,7 +17,7 @@
 
 %% API
 -export([start/0, stop/0]).
--export([start_link/0]).
+-export([start_link/0, start_link/1]).
 
 %% ElasticSearch
 -export([health/0]).
@@ -74,10 +74,15 @@ delete_doc(Index, Type, Id) ->
 %% ------------------------------------------------------------------
 
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+    StartOptions = get_env(thrift_options, ?DEFAULT_THRIFT_OPTIONS),
+    start_link(StartOptions).
 
-init(_) ->
-    Connection = connection(),
+start_link(StartOptions) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [StartOptions], []).
+
+init([StartOptions]) ->
+    lager:debug("S:~p~n", [StartOptions]),
+    Connection = connection(StartOptions),
     {ok, #state{connection = Connection}}.
 
 handle_call({Request = health}, _From, State = #state{connection = Connection0}) ->
@@ -123,11 +128,11 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 %% @doc Build a new connection
--spec connection() -> connection().
-connection() ->
+-spec connection([tuple()]) -> connection().
+connection(StartOptions) ->
     ThriftHost = get_env(thrift_host, ?DEFAULT_THRIFT_HOST),
     ThriftPort = get_env(thrift_port, ?DEFAULT_THRIFT_PORT),
-    {ok, Connection} = thrift_client_util:new(ThriftHost, ThriftPort, elasticsearch_thrift, []),
+    {ok, Connection} = thrift_client_util:new(ThriftHost, ThriftPort, elasticsearch_thrift, StartOptions),
     Connection.
 
 %% @doc Process the request over thrift

@@ -26,6 +26,7 @@
 %% Defaults
 -define(DEFAULT_THRIFT_HOST, "localhost").
 -define(DEFAULT_THRIFT_PORT, 9500).
+-define(DEFAULT_THRIFT_OPTIONS, []).
 
 %% Errors
 -define(NO_SUCH_SEQUENCE, no_such_sequence).
