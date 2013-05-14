@@ -23,11 +23,11 @@ Add this as a rebar dependency to your project.
 Details
 ============
 1. Any JSON expected by ElasticSearch will need to go in as JSON  
-   * For example --> ```<<"{\"settings\":{\"number_of_shards\":3}}">>```)
+   * For example --> ```<<"{\"settings\":{\"number_of_shards\":3}}">>```
 1. Output returned by most everything is in the form ```{ok, #restResponse{}} | error()```
-   * See the format of #restResponse{} [here](https://github.com/dieswaytoofast/erlasticsearch/blob/master/src/elasticsearch_types.hrl).
-   * See the format of error() [here](https://github.com/dieswaytoofast/erlasticsearch/blob/master/src/erlasticsearch.hrl)
-   * The payload from ElasticSearch - when it exists - will almost always be JSON
+   * See the format of ```#restResponse{}``` [here](https://github.com/dieswaytoofast/erlasticsearch/blob/master/src/elasticsearch_types.hrl).
+   * See the format of ```error()``` [here](https://github.com/dieswaytoofast/erlasticsearch/blob/master/src/erlasticsearch.hrl)
+   * The payload _from_ ElasticSearch - when it exists - will almost always be JSON
       * e.g. --> ```<<"{\"ok\":true,\"acknowledged\":true}">>```
 1. Boolean methods (e.g. ```is_index/1```) return a ```boolean()``` (d-uh)
 
@@ -119,6 +119,6 @@ erlasticsearch@pecorino)12> erlasticsearch:delete_doc(<<"index1">>, <<"type1">>,
 
 Credits
 =======
-(Not to be confused with [erlastic_search](https://github.com/tsloughter/erlastic_search) by tsloughter, which is HTTP/REST based, and quite probably more feature rich)
+This is _not_ to be confused with [erlastic_search](https://github.com/tsloughter/erlastic_search) by [Tristan Sloughter](https://github.com/tsloughter), which is HTTP/REST based, and quite probably more feature rich, but almost certainly did not involve quiet this level of head-thumping associated w/ figuring out how Thrift works…
 
 (Yes, this is a _Credit_)
