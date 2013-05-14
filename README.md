@@ -61,6 +61,8 @@ erlasticsearch@pecorino)2>erlasticsearch:start_client(<<"bar2">>, [{framed, true
 {ok,<0.182.0>}
 erlasticsearch@pecorino)3> erlasticsearch:stop_client(<<"bar1">>).
 ok
+erlasticsearch@pecorino)4> erlasticsearch:stop_client(<<"bar2">>).
+ok
 ```
 
 Index CRUD
@@ -184,7 +186,6 @@ flush/1 | ServerRef  | Flushes all the indices
 flush/2 | ServerRef, Index | Flushes the specified Index.  ()Note that a list of Indices can also be sent in (e.g., ```[<<<"foo">>, <<"bar">>]```)
 refresh/1 | ServerRef  | Refreshes all the indices
 refresh/2 | ServerRef, Index | Refreshes the specified Index.  ()Note that a list of Indices can also be sent in (e.g., ```[<<<"foo">>, <<"bar">>]```)
-search/5 | ServerRef, IndexName, Type, Doc, Params  | Searches the index _IndexName_, with type _Type_ for the JSON query embedded in _Doc_, and passes the tuple-list _Params_ to ElasticSearch
 
 
 
@@ -197,6 +198,8 @@ erlasticsearch@pecorino)2> erlasticsearch:refresh(<<"bar">>).                   
 erlasticsearch@pecorino)3> erlasticsearch:refresh(<<"bar">>, <<"index1">>).                                                                        {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":10,\"successful\":5,\"failed\":0}}">>}}
 erlasticsearch@pecorino)4> erlasticsearch:refresh(<<"bar">>, [<<"index1">>, <<"index2">>]).
 {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":16,\"successful\":8,\"failed\":0}}">>}} 
+```
+```erlang
 erlasticsearch@pecorino)5> erlasticsearch:flush(<<"bar">>).                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}} 
 erlasticsearch@pecorino)6> erlasticsearch:refresh(<<"bar">>, <<"index1">>).                                                                        {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":10,\"successful\":5,\"failed\":0}}">>}}
 erlasticsearch@pecorino)7> erlasticsearch:refresh(<<"bar">>, [<<"index1">>, <<"index2">>]).
