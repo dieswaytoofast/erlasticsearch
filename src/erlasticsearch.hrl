@@ -23,14 +23,23 @@
 -type id()              :: binary() | undefined.
 -type doc()             :: binary().
 -type params()          :: [tuple()].
+-type client_name()     :: binary().
+-type registered_name() :: atom().
+-type server_ref()      :: atom() | pid() | client_name().
+-type target()          :: atom() | pid().
+
 
 %% Defaults
 -define(DEFAULT_THRIFT_HOST, "localhost").
 -define(DEFAULT_THRIFT_PORT, 9500).
 -define(DEFAULT_THRIFT_OPTIONS, []).
+-define(REGISTERED_NAME_PREFIX, "erlasticsearch_").
 
 %% Errors
 -define(NO_SUCH_SEQUENCE, no_such_sequence).
 
 %% Methods
 -define(HEALTH, "_cluster/health").
+-define(SEARCH, "_search").
+-define(REFRESH, "_refresh").
+-define(FLUSH, "_flush").

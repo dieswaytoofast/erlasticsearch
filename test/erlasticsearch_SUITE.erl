@@ -34,28 +34,31 @@ init_per_suite(Config) ->
 end_per_suite(_Config) ->
     ok.
 
-init_per_group(_GroupName, Config) ->
-    start(),
+init_per_group(_GroupName, Config0) ->
+    ClientName = random_name(<<"client_">>),
+    Config1 = [{client_name, ClientName} | Config0],
+    start(Config1),
+
 
     Index = random_name(<<"index_">>),
     IndexWithShards = bstr:join([Index, <<"with_shards">>], <<"_">>),
 
-    Config1 = [{index, Index}, {index_with_shards, IndexWithShards}]
-                ++ Config,
+    Config2 = [{index, Index}, {index_with_shards, IndexWithShards}]
+                ++ Config1,
     % Clear out any existing indices w/ this name
-    delete_all_indices(Index, true),
-    delete_all_indices(IndexWithShards, true),
+    delete_all_indices(Config2),
 
     Type = random_name(<<"type_">>),
 
-    [{type, Type}] ++ Config1.
+    [{type, Type}] ++ Config2.
 
 end_per_group(_GroupName, Config) ->
+    ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
     IndexWithShards = ?config(index_with_shards, Config),
-    delete_all_indices(Index, true),
-    delete_all_indices(IndexWithShards, true),
-    stop(),
+    delete_all_indices(ClientName, Index, true),
+    delete_all_indices(ClientName, IndexWithShards, true),
+    stop(Config),
     ok.
 
 
@@ -71,108 +74,246 @@ groups() ->
        t_create_index, 
        t_create_index_with_shards
       ]},
+     {index_helpers, [],
+       [t_flush_1,
+       t_flush_list,
+       t_flush_all,
+       t_refresh_1,
+       t_refresh_list,
+       t_refresh_all
+       ]},
     {crud_doc, [],
       [t_insert_doc, 
        t_get_doc, 
        t_delete_doc
+      ]},
+     {search, [],
+      [t_search
       ]}
     ].
 
 all() ->
-    [{group, crud_index}, {group, crud_doc}].
+    [
+        {group, crud_index}, 
+        {group, crud_doc}, 
+        {group, search},
+        {group, index_helpers}
+    ].
 
 t_is_index(Config) ->
+    ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
-    create_indices(Index),
-    are_indices(Index),
-    delete_all_indices(Index).
+    create_indices(ClientName, Index),
+    are_indices(ClientName, Index),
+    delete_all_indices(ClientName, Index).
 
 t_create_index(Config) ->
+    ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
-    create_indices(Index),
-    delete_all_indices(Index).
+    create_indices(ClientName, Index),
+    delete_all_indices(ClientName, Index).
 
 t_create_index_with_shards(Config) ->
+    ClientName = ?config(client_name, Config),
     Index = ?config(index_with_shards, Config),
-    create_indices(Index),
-    delete_all_indices(Index).
+    create_indices(ClientName, Index),
+    delete_all_indices(ClientName, Index).
+
+t_flush_1(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    lists:foreach(fun(X) ->
+                BX = list_to_binary(integer_to_list(X)),
+                FullIndex = bstr:join([Index, BX], <<"_">>),
+                Response = erlasticsearch:flush(ClientName, FullIndex),
+                ct:pal("Flush one Index:~p~n", [Response]),
+                true = erlasticsearch:is_200(Response)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    delete_all_indices(ClientName, Index).
+
+t_flush_list(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    Indexes = 
+    lists:map(fun(X) ->
+                BX = list_to_binary(integer_to_list(X)),
+                bstr:join([Index, BX], <<"_">>)
+            end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    Response = erlasticsearch:flush(ClientName, Indexes),
+    ct:pal("Flush list Index:~p~n", [Response]),
+    true = erlasticsearch:is_200(Response),
+    delete_all_indices(ClientName, Index).
+
+t_flush_all(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    Response = erlasticsearch:flush(ClientName),
+    ct:pal("Flush all Index:~p~n", [Response]),
+    true = erlasticsearch:is_200(Response),
+    delete_all_indices(ClientName, Index).
+
+t_refresh_1(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    lists:foreach(fun(X) ->
+                BX = list_to_binary(integer_to_list(X)),
+                FullIndex = bstr:join([Index, BX], <<"_">>),
+                Response = erlasticsearch:refresh(ClientName, FullIndex),
+                ct:pal("Flush one Index:~p~n", [Response]),
+                true = erlasticsearch:is_200(Response)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    delete_all_indices(ClientName, Index).
+
+t_refresh_list(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    Indexes = 
+    lists:map(fun(X) ->
+                BX = list_to_binary(integer_to_list(X)),
+                bstr:join([Index, BX], <<"_">>)
+            end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    Response = erlasticsearch:refresh(ClientName, Indexes),
+    ct:pal("Flush list Index:~p~n", [Response]),
+    true = erlasticsearch:is_200(Response),
+    delete_all_indices(ClientName, Index).
+
+t_refresh_all(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    Response = erlasticsearch:refresh(ClientName),
+    ct:pal("Flush all Index:~p~n", [Response]),
+    true = erlasticsearch:is_200(Response),
+    delete_all_indices(ClientName, Index).
+
+
+
+t_search(Config) ->
+    t_insert_doc(Config),
+
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    lists:foreach(fun(X) ->
+                Query = in_query(X),
+                % Refresh the index otherwise it might not 'take'
+                erlasticsearch:refresh(ClientName, Index),
+                Result = erlasticsearch:search(ClientName, Index, Type, <<>>, [{q, Query}]),
+                % The document is structured so that the number of top level
+                % keys is as (?DOCUMENT_DEPTH + 1 - X)
+                ?DOCUMENT_DEPTH  = hits_from_result(Result) + X - 1
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    t_delete_doc(Config).
+
+in_query(X) ->
+    Key = key(X),
+    Value = value(X),
+    bstr:join([Key, Value], <<":">>).
+
+hits_from_result({ok, {_, _, _, JSON}}) ->
+    case lists:keyfind(<<"hits">>, 1, jsx:decode(JSON)) of
+        false -> throw(false);
+        {_, Result} ->
+            case lists:keyfind(<<"total">>, 1, Result) of
+                false -> throw(false);
+                {_, Data} -> Data
+            end
+    end.
+
+
 
 t_insert_doc(Config) ->
+    ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                Response = erlasticsearch:insert_doc(Index, Type, 
-                                                            BX, json_document(X)),
+                Response = erlasticsearch:insert_doc(ClientName, Index, 
+                                                     Type, BX, json_document(X)),
                 ct:pal("Insert:~p~n", [Response]),
                 true = erlasticsearch:is_200_or_201(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
 t_get_doc(Config) ->
+    ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                Response = erlasticsearch:get_doc(Index, Type, BX),
+                Response = erlasticsearch:get_doc(ClientName, Index, Type, BX),
                 ct:pal("Get:~p~n", [Response]),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
 t_delete_doc(Config) ->
+    ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                Response = erlasticsearch:delete_doc(Index, Type, BX),
+                Response = erlasticsearch:delete_doc(ClientName, Index, Type, BX),
                 ct:pal("Delete:~p~n", [Response]),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
 %% Test helpers
 % Create a bunch-a indices
-create_indices(Index) ->
+create_indices(ClientName, Index) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = bstr:join([Index, BX], <<"_">>),
-                Response = erlasticsearch:create_index(FullIndex),
+                Response = erlasticsearch:create_index(ClientName, FullIndex),
                 ct:pal("Create Index:~p~n", [Response]),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
-are_indices(Index) ->
+are_indices(ClientName, Index) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = bstr:join([Index, BX], <<"_">>),
-                true = erlasticsearch:is_index(FullIndex)
+                true = erlasticsearch:is_index(ClientName, FullIndex)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
+delete_all_indices(Config) ->
+    ct:pal("Config:~p~n", [Config]),
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    IndexWithShards = bstr:join([Index, <<"with_shards">>], <<"_">>),
+    delete_all_indices(ClientName, Index, true),
+    delete_all_indices(ClientName, IndexWithShards, true).
+
 % By default, blindly delete
-delete_all_indices(Index) ->
-    delete_all_indices(Index, false).
+delete_all_indices(ClientName, Index) ->
+    delete_all_indices(ClientName, Index, false).
 
 % Optionally check to see if the indices exist before trying to delete
-delete_all_indices(Index, CheckIndex) ->
+delete_all_indices(ClientName, Index, CheckIndex) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = bstr:join([Index, BX], <<"_">>),
 
                 case CheckIndex of
                     true ->
-                        case erlasticsearch:is_index(FullIndex) of
+                        case erlasticsearch:is_index(ClientName, FullIndex) of
                             % Only delete if the index exists
                             true -> 
-                                delete_this_index(FullIndex);
+                                delete_this_index(ClientName, FullIndex);
                             false ->
                                 true
                         end;
                     false -> 
                         % Blindly Delete the indices
-                        delete_this_index(FullIndex)
+                        delete_this_index(ClientName, FullIndex)
                 end
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
-delete_this_index(Index) ->
-    Response = erlasticsearch:delete_index(Index),
+delete_this_index(ClientName, Index) ->
+    Response = erlasticsearch:delete_index(ClientName, Index),
     ct:pal("Delete Index:~p~n", [{erlasticsearch:is_200(Response), Response}]),
     true = erlasticsearch:is_200(Response).
 
@@ -199,7 +340,7 @@ sub(N) -> data_index(sub, N).
 data_index(Data, Index) ->
     BData = list_to_binary(atom_to_list(Data)),
     BIndex = list_to_binary(integer_to_list(Index)),
-    bstr:join([BData, <<"_">>, BIndex]).
+    bstr:join([BData, BIndex], <<"_">>).
 
 random_name(Name) ->
     random:seed(erlang:now()),
@@ -214,7 +355,8 @@ setup_lager() ->
     lager:set_loglevel(lager_console_backend, debug),
     lager:set_loglevel(lager_file_backend, "console.log", debug).
 
-start() ->
+start(Config) ->
+    ClientName = ?config(client_name, Config),
     application:start(kernel),
     application:start(stdlib),
     application:start(crypto),
@@ -223,9 +365,13 @@ start() ->
     application:start(sasl),
     application:start(bstr),
     application:start(jsx),
-    application:start(erlasticsearch).
+    application:start(erlasticsearch),
+    erlasticsearch:start_client(ClientName)
+    .
 
-stop() ->
+stop(Config) ->
+    ClientName = ?config(client_name, Config),
+    erlasticsearch:stop_client(ClientName),
     ok.
 %    application:stop(jsx),
 %    application:stop(bstr),
