@@ -14,7 +14,6 @@
 -behaviour(gen_server).
 
 -include("erlasticsearch.hrl").
--export([rest_request/2]).
 
 %% API
 -export([start/0, stop/0]).
