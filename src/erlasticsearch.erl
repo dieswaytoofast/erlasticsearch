@@ -14,6 +14,7 @@
 -behaviour(gen_server).
 
 -include("erlasticsearch.hrl").
+-export([rest_request/2]).
 
 %% API
 -export([start/0, stop/0]).
@@ -158,8 +159,6 @@ refresh(ServerRef) ->
 
 %% @doc Refresh one or more indices
 -spec refresh(server_ref(), [index() | [index()]]) -> response().
-refresh(ServerRef, Indexes) when is_list(Indexes) ->
-    gen_server:call(get_target(ServerRef), {refresh_list, Indexes});
 refresh(ServerRef, Index) ->
     gen_server:call(get_target(ServerRef), {refresh, Index}).
 
@@ -170,8 +169,6 @@ flush(ServerRef) ->
 
 %% @doc Flush one or more indices
 -spec flush(server_ref(), [index() | [index()]]) -> response().
-flush(ServerRef, Indexes) when is_list(Indexes) ->
-    gen_server:call(get_target(ServerRef), {flush_list, Indexes});
 flush(ServerRef, Index) ->
     gen_server:call(get_target(ServerRef), {flush, Index}).
 
@@ -190,7 +187,7 @@ init([ClientName, StartOptions]) ->
                 connection = Connection}}.
 
 handle_call({Request = health}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, undefined),
+    RestRequest = rest_request(Request, {undefined}),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
@@ -241,11 +238,6 @@ handle_call({Request = refresh, Index}, _From, State = #state{connection = Conne
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
-handle_call({Request = refresh_list, Indexes}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Indexes}),
-    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
-    {reply, RestResponse, State#state{connection = Connection1}};
-
 handle_call({Request = flush}, _From, State = #state{connection = Connection0}) ->
     RestRequest = rest_request(Request, {undefined}),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
@@ -253,11 +245,6 @@ handle_call({Request = flush}, _From, State = #state{connection = Connection0}) 
 
 handle_call({Request = flush, Index}, _From, State = #state{connection = Connection0}) ->
     RestRequest = rest_request(Request, {Index}),
-    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
-    {reply, RestResponse, State#state{connection = Connection1}};
-
-handle_call({Request = flush_list, Indexes}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Indexes}),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
@@ -299,7 +286,7 @@ process_request(Connection, Request) ->
 
 %% @doc Build a new rest request
 -spec rest_request(method(), any()) -> request().
-rest_request(health, _) ->
+rest_request(health, {undefined}) ->
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = ?HEALTH};
 
@@ -373,8 +360,8 @@ rest_request(refresh, {Index}) when is_binary(Index) ->
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri};
 
-rest_request(refresh_list, {Indexes}) when is_list(Indexes) ->
-    IndexList = bstr:join(Indexes, <<",">>),
+rest_request(refresh, {Index}) when is_list(Index) ->
+    IndexList = bstr:join(Index, <<",">>),
     Uri = bstr:join([IndexList, ?REFRESH], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri};
@@ -388,8 +375,8 @@ rest_request(flush, {Index}) when is_binary(Index) ->
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri};
 
-rest_request(flush_list, {Indexes}) when is_list(Indexes) ->
-    IndexList = bstr:join(Indexes, <<",">>),
+rest_request(flush, {Index}) when is_list(Index) ->
+    IndexList = bstr:join(Index, <<",">>),
     Uri = bstr:join([IndexList, ?FLUSH], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri}.
