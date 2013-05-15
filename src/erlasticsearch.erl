@@ -47,6 +47,7 @@
 -export([status/2]).
 -export([refresh/1, refresh/2]).
 -export([flush/1, flush/2]).
+-export([optimize/1, optimize/2]).
 
 -export([is_200/1, is_200_or_201/1]).
 
@@ -199,6 +200,16 @@ flush(ServerRef) ->
 flush(ServerRef, Index) ->
     gen_server:call(get_target(ServerRef), {flush, Index}).
 
+%% @doc Optimize all indices
+-spec optimize(server_ref()) -> response().
+optimize(ServerRef) ->
+    gen_server:call(get_target(ServerRef), {optimize}).
+
+%% @doc Optimize one or more indices
+-spec optimize(server_ref(), [index() | [index()]]) -> response().
+optimize(ServerRef, Index) ->
+    gen_server:call(get_target(ServerRef), {optimize, Index}).
+
 
 
 %% ------------------------------------------------------------------
@@ -294,6 +305,16 @@ handle_call({_Request = flush}, _From, State = #state{connection = Connection0})
 
 handle_call({_Request = flush, Index}, _From, State = #state{connection = Connection0}) ->
     RestRequest = rest_request_flush(Index),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({_Request = optimize}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_optimize(),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({_Request = optimize, Index}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_optimize(Index),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
@@ -472,6 +493,21 @@ rest_request_flush(Index) when is_binary(Index) ->
 rest_request_flush(Index) when is_list(Index) ->
     IndexList = bstr:join(Index, <<",">>),
     Uri = bstr:join([IndexList, ?FLUSH], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_POST,
+                 uri = Uri}.
+
+rest_request_optimize() ->
+    #restRequest{method = ?elasticsearch_Method_POST,
+                 uri = ?OPTIMIZE}.
+
+rest_request_optimize(Index) when is_binary(Index) ->
+    Uri = bstr:join([Index, ?OPTIMIZE], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_POST,
+                 uri = Uri};
+
+rest_request_optimize(Index) when is_list(Index) ->
+    IndexList = bstr:join(Index, <<",">>),
+    Uri = bstr:join([IndexList, ?OPTIMIZE], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri}.
 

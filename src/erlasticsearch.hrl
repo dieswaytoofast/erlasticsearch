@@ -46,3 +46,4 @@
 -define(FLUSH, <<"_flush">>).
 -define(OPEN, <<"_open">>).
 -define(CLOSE, <<"_close">>).
+-define(OPTIMIZE, <<"_optimize">>).

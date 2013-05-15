@@ -84,7 +84,11 @@ groups() ->
         t_flush_all,
         t_refresh_1,
         t_refresh_list,
-        t_refresh_all
+        t_refresh_all,
+        t_optimize_1,
+        t_optimize_list,
+        t_optimize_all
+
        ]},
     {crud_doc, [],
       [t_insert_doc, 
@@ -264,6 +268,39 @@ t_refresh_all(Config) ->
     Index = ?config(index, Config),
     create_indices(ClientName, Index),
     Response = erlasticsearch:refresh(ClientName),
+    true = erlasticsearch:is_200(Response),
+    delete_all_indices(ClientName, Index).
+
+t_optimize_1(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    lists:foreach(fun(X) ->
+                BX = list_to_binary(integer_to_list(X)),
+                FullIndex = bstr:join([Index, BX], <<"_">>),
+                Response = erlasticsearch:optimize(ClientName, FullIndex),
+                true = erlasticsearch:is_200(Response)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    delete_all_indices(ClientName, Index).
+
+t_optimize_list(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    Indexes = 
+    lists:map(fun(X) ->
+                BX = list_to_binary(integer_to_list(X)),
+                bstr:join([Index, BX], <<"_">>)
+            end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    Response = erlasticsearch:optimize(ClientName, Indexes),
+    true = erlasticsearch:is_200(Response),
+    delete_all_indices(ClientName, Index).
+
+t_optimize_all(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    Response = erlasticsearch:optimize(ClientName),
     true = erlasticsearch:is_200(Response),
     delete_all_indices(ClientName, Index).
 
