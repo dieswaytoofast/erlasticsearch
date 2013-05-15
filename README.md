@@ -208,6 +208,8 @@ Function | Parameters | Description
 ----- | ----------- | --------
 flush/1 | ServerRef  | Flushes all the indices
 flush/2 | ServerRef, Index | Flushes the index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
+optimize/1 | ServerRef  | Optimizes all the indices
+optimize/2 | ServerRef, Index | Optimizes the index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
 refresh/1 | ServerRef  | Refreshes all the indices
 refresh/2 | ServerRef, Index | Refreshes the index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
 status/2 | ServerRef, Index | Returns the status of index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
@@ -236,6 +238,15 @@ erlasticsearch@pecorino)8> erlasticsearch:status(<<"bar">>, <<"index1">>).
 erlasticsearch@pecorino)9> erlasticsearch:status(<<"bar">>, [<<"index1">>, <<"index2">>]).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"_shards\":{\"total\":16,\"successful\":8,\"failed\":0},\"indices\":{\"index2\":{\"index\":{\"pri"...>>}}
+erlasticsearch@pecorino)10> erlasticsearch:optimize(<<"bar">>, <<"index1">>).     
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_shards\":{\"total\":10,\"successful\":5,\"failed\":0}}">>}}
+erlasticsearch@pecorino)11> erlasticsearch:optimize(<<"bar">>, [<<"index1">>, <<"index2">>]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_shards\":{\"total\":16,\"successful\":8,\"failed\":0}}">>}}
+erlasticsearch@pecorino)12> erlasticsearch:optimize(<<"bar">>).                         
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_shards\":{\"total\":692,\"successful\":346,\"failed\":0}}">>}}                  
 ```
 
 

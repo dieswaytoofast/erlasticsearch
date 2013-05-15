@@ -8,6 +8,7 @@
 %%% a copy of the New BSD license with this software. If not, it can be
 %%% retrieved from: http://www.opensource.org/licenses/bsd-license.php
 %%%-------------------------------------------------------------------
+%%%
 -module(erlasticsearch).
 -author('Mahesh Paolini-Subramanya <mahesh@dieswaytoofast.com>').
 

@@ -304,7 +304,6 @@ t_optimize_all(Config) ->
     true = erlasticsearch:is_200(Response),
     delete_all_indices(ClientName, Index).
 
-
 t_open_index(Config) ->
         t_insert_doc(Config),
         ClientName = ?config(client_name, Config),
