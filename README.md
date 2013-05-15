@@ -257,6 +257,14 @@ A bunch of functions that do "things" to clusters (health, etc.)
 Function | Parameters | Description
 ----- | ----------- | --------
 health/1 | ServerRef  | Reports the health of the cluster
+state/1 | ServerRef  | Reports the state of the cluster
+state/2 | ServerRef, Params  | Reports the state of the cluster, with optional parameters
+nodes_info/1 | ServerRef  | Reports the state of all the nodes in the cluster
+nodes_info/2 | ServerRef, NodeName  | Reports the state of the node _NodeName_ in the cluster. (Note that a list of Nodes can also be sent in (e.g., ```[<<"node1">>, <<"node2">>]```)
+nodes_info/3 | ServerRef, NodeName, Params  | Reports the state of the node _NodeName_ in the cluster, with optional _Params_. (Note that a list of Nodes can also be sent in (e.g., ```[<<"node1">>, <<"node2">>]```)
+nodes_stats/1 | ServerRef  | Reports stats on all the nodes in the cluster
+nodes_stats/2 | ServerRef, NodeName  | Reports the stats of the node _NodeName_ in the cluster. (Note that a list of Nodes can also be sent in (e.g., ```[<<"node1">>, <<"node2">>]```)
+nodes_stats/3 | ServerRef, NodeName, Params  | Reports the stats of the node _NodeName_ in the cluster, with optional _Params_. (Note that a list of Nodes can also be sent in (e.g., ```[<<"node1">>, <<"node2">>]```)
 
 
 **EXAMPLES**
@@ -267,6 +275,42 @@ erlasticsearch@pecorino)2> erlasticsearch:refresh(<<"bar">>).                   
 erlasticsearch@pecorino)3> erlasticsearch:health(<<"bar">>).                          
 {ok,{restResponse,200,undefined,
                   <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"status\":\"yellow\",\"timed_out\":false,\"number_of_nodes\""...>>}}
+```
+```erlang
+erlasticsearch@pecorino)4> erlasticsearch:state(<<"bar">>).
+{ok,{restResponse,200,undefined,
+                  <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"master_node\":\"7k3ViuT5SQ67ayWsF1y8hQ\",\"blocks\":{\"ind"...>>}}
+erlasticsearch@pecorino)5> erlasticsearch:state(<<"bar">>, [{filter_nodes, true}]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"blocks\":{\"indices\":{\"index1\":{\"4\":{\"description\":\"inde"...>>}}
+```
+```erlang
+erlasticsearch@pecorino)6> erlasticsearch:nodes_info(<<"bar">>).                   
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"name\":\""...>>}}
+erlasticsearch@pecorino)7> erlasticsearch:nodes_info(<<"bar">>, <<"node1">>).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"name\":\""...>>}}
+erlasticsearch@pecorino)8> erlasticsearch:nodes_info(<<"bar">>, [<<"node1">>]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"name\":\""...>>}}
+erlasticsearch@pecorino)9> erlasticsearch:nodes_info(<<"bar">>, [<<"node1">>], [{os, true}, {process, true}]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"name\":\""...>>}}
+```
+```erlang
+erlasticsearch@pecorino)10> erlasticsearch:nodes_stats(<<"bar">>).                              
+{ok,{restResponse,200,undefined,
+                  <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"timestamp\":136865"...>>}}
+erlasticsearch@pecorino)11> erlasticsearch:nodes_stats(<<"bar">>, <<"node1">>).
+{ok,{restResponse,200,undefined,
+                  <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"timestamp\":136865"...>>}}
+erlasticsearch@pecorino)12> erlasticsearch:nodes_stats(<<"bar">>, [<<"node1">>]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"timestamp\":136865"...>>}}
+erlasticsearch@pecorino)13> erlasticsearch:nodes_stats(<<"bar">>, [<<"node1">>], [{process, true}, {transport, true}]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"timestamp\":136865"...>>}}
 ```
 
 

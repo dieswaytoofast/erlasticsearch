@@ -8,7 +8,7 @@
 %%% a copy of the New BSD license with this software. If not, it can be
 %%% retrieved from: http://www.opensource.org/licenses/bsd-license.php
 %%%-------------------------------------------------------------------
-%%%
+
 -module(erlasticsearch).
 -author('Mahesh Paolini-Subramanya <mahesh@dieswaytoofast.com>').
 
@@ -31,6 +31,9 @@
 
 % Cluster helpers
 -export([health/1]).
+-export([state/1, state/2]).
+-export([nodes_info/1, nodes_info/2, nodes_info/3]).
+-export([nodes_stats/1, nodes_stats/2, nodes_stats/3]).
 
 % Index CRUD
 -export([create_index/2, create_index/3]).
@@ -103,10 +106,58 @@ stop_client(ClientName) ->
 health(ServerRef) ->
     gen_server:call(get_target(ServerRef), {health}).
 
+%% @equiv state(ServerRef, []).
+-spec state(server_ref()) -> response().
+state(ServerRef) ->
+    state(ServerRef, []).
+
+%% @doc Get the state of the  ElasticSearch cluster
+-spec state(server_ref(), params()) -> response().
+state(ServerRef, Params) ->
+    gen_server:call(get_target(ServerRef), {state, Params}).
+
+%% @equiv nodes_info(ServerRef, [], []).
+-spec nodes_info(server_ref()) -> response().
+nodes_info(ServerRef) ->
+    nodes_info(ServerRef, [], []).
+
+%% @equiv nodes_info(ServerRef, [NodeName], []).
+-spec nodes_info(server_ref(), node_name()) -> response().
+nodes_info(ServerRef, NodeName) when is_binary(NodeName) ->
+    nodes_info(ServerRef, [NodeName], []);
+%% @equiv nodes_info(ServerRef, NodeNames, []).
+nodes_info(ServerRef, NodeNames) when is_list(NodeNames) ->
+    nodes_info(ServerRef, NodeNames, []).
+
+%% @doc Get the nodes_info of the  ElasticSearch cluster
+-spec nodes_info(server_ref(), [node_name()], params()) -> response().
+nodes_info(ServerRef, NodeNames, Params) ->
+    gen_server:call(get_target(ServerRef), {nodes_info, NodeNames, Params}).
+
+%% @equiv nodes_stats(ServerRef, [], []).
+-spec nodes_stats(server_ref()) -> response().
+nodes_stats(ServerRef) ->
+    nodes_stats(ServerRef, [], []).
+
+%% @equiv nodes_stats(ServerRef, [NodeName], []).
+-spec nodes_stats(server_ref(), node_name()) -> response().
+nodes_stats(ServerRef, NodeName) when is_binary(NodeName) ->
+    nodes_stats(ServerRef, [NodeName], []);
+%% @equiv nodes_stats(ServerRef, NodeNames, []).
+nodes_stats(ServerRef, NodeNames) when is_list(NodeNames) ->
+    nodes_stats(ServerRef, NodeNames, []).
+
+%% @doc Get the nodes_stats of the  ElasticSearch cluster
+-spec nodes_stats(server_ref(), [node_name()], params()) -> response().
+nodes_stats(ServerRef, NodeNames, Params) ->
+    gen_server:call(get_target(ServerRef), {nodes_stats, NodeNames, Params}).
+
 %% @doc Get the status of an index/indices in the  ElasticSearch cluster
 -spec status(server_ref(), [index() | [index()]]) -> response().
-status(ServerRef, Index) ->
-    gen_server:call(get_target(ServerRef), {status, Index}).
+status(ServerRef, Index) when is_binary(Index) ->
+    status(ServerRef, [Index]);
+status(ServerRef, Indexes) when is_list(Indexes)->
+    gen_server:call(get_target(ServerRef), {status, Indexes}).
 
 %% @equiv create_index(ServerRef, Index, <<>>)
 -spec create_index(server_ref(), index()) -> response().
@@ -135,13 +186,21 @@ close_index(ServerRef, Index) ->
 
 %% @doc Check if an index/indices exists in the ElasticSearch cluster
 -spec is_index(server_ref(), [index() | [index()]]) -> boolean().
-is_index(ServerRef, Index) -> 
-    gen_server:call(get_target(ServerRef), {is_index, Index}).
+is_index(ServerRef, Index) when is_binary(Index) -> 
+    is_index(ServerRef, [Index]);
+is_index(ServerRef, Indexes) when is_list(Indexes) ->
+    gen_server:call(get_target(ServerRef), {is_index, Indexes}).
 
 %% @doc Check if a type exists in an index/indices in the ElasticSearch cluster
 -spec is_type(server_ref(), [index() | [index()]], [type() | [type()]]) -> boolean().
-is_type(ServerRef, Index, Type) -> 
-    gen_server:call(get_target(ServerRef), {is_type, Index, Type}).
+is_type(ServerRef, Index, Type) when is_binary(Index), is_binary(Type) -> 
+    is_type(ServerRef, [Index], [Type]);
+is_type(ServerRef, Indexes, Type) when is_list(Indexes), is_binary(Type) -> 
+    is_type(ServerRef, Indexes, [Type]);
+is_type(ServerRef, Index, Types) when is_binary(Index), is_list(Types) -> 
+    is_type(ServerRef, [Index], Types);
+is_type(ServerRef, Indexes, Types) when is_list(Indexes), is_list(Types) -> 
+    gen_server:call(get_target(ServerRef), {is_type, Indexes, Types}).
 
 %% @equiv insert_doc(Index, Type, Id, Doc, []).
 -spec insert_doc(server_ref(), index(), type(), id(), doc()) -> response().
@@ -188,8 +247,10 @@ refresh(ServerRef) ->
 
 %% @doc Refresh one or more indices
 %-spec refresh(server_ref(), [index() | [index()]]) -> response().
-refresh(ServerRef, Index) ->
-    gen_server:call(get_target(ServerRef), {refresh, Index}).
+refresh(ServerRef, Index) when is_binary(Index) ->
+    refresh(ServerRef, [Index]);
+refresh(ServerRef, Indexes) when is_list(Indexes) ->
+    gen_server:call(get_target(ServerRef), {refresh, Indexes}).
 
 %% @doc Flush all indices
 -spec flush(server_ref()) -> response().
@@ -198,8 +259,10 @@ flush(ServerRef) ->
 
 %% @doc Flush one or more indices
 -spec flush(server_ref(), [index() | [index()]]) -> response().
-flush(ServerRef, Index) ->
-    gen_server:call(get_target(ServerRef), {flush, Index}).
+flush(ServerRef, Index) when is_binary(Index) ->
+    flush(ServerRef, [Index]);
+flush(ServerRef, Indexes) when is_list(Indexes) ->
+    gen_server:call(get_target(ServerRef), {flush, Indexes}).
 
 %% @doc Optimize all indices
 -spec optimize(server_ref()) -> response().
@@ -208,8 +271,10 @@ optimize(ServerRef) ->
 
 %% @doc Optimize one or more indices
 -spec optimize(server_ref(), [index() | [index()]]) -> response().
-optimize(ServerRef, Index) ->
-    gen_server:call(get_target(ServerRef), {optimize, Index}).
+optimize(ServerRef, Index) when is_binary(Index) ->
+    optimize(ServerRef, [Index]);
+optimize(ServerRef, Indexes) when is_list(Indexes) ->
+    gen_server:call(get_target(ServerRef), {optimize, Indexes}).
 
 
 
@@ -227,6 +292,21 @@ init([ClientName, StartOptions]) ->
 
 handle_call({_Request = health}, _From, State = #state{connection = Connection0}) ->
     RestRequest = rest_request_health(),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({_Request = state, Params}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_state(Params),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({_Request = nodes_info, NodeNames, Params}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_nodes_info(NodeNames, Params),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({_Request = nodes_stats, NodeNames, Params}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_nodes_stats(NodeNames, Params),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
@@ -360,10 +440,24 @@ rest_request_health() ->
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = ?HEALTH}.
 
-rest_request_status(Index) when is_binary(Index) ->
-    Uri = bstr:join([Index, ?STATUS], <<"/">>),
+rest_request_state(Params) when is_list(Params) ->
+    Uri = make_uri([?STATE], Params),
     #restRequest{method = ?elasticsearch_Method_GET,
-                 uri = Uri};
+                 uri = Uri}.
+
+rest_request_nodes_info(NodeNames, Params) when is_list(NodeNames),
+                                                is_list(Params) ->
+    NodeNameList = bstr:join(NodeNames, <<",">>),
+    Uri = make_uri([?NODES, NodeNameList], Params),
+    #restRequest{method = ?elasticsearch_Method_GET,
+                 uri = Uri}.
+
+rest_request_nodes_stats(NodeNames, Params) when is_list(NodeNames),
+                                                is_list(Params) ->
+    NodeNameList = bstr:join(NodeNames, <<",">>),
+    Uri = make_uri([?NODES, NodeNameList, ?STATS], Params),
+    #restRequest{method = ?elasticsearch_Method_GET,
+                 uri = Uri}.
 
 rest_request_status(Index) when is_list(Index) ->
     IndexList = bstr:join(Index, <<",">>),
@@ -391,37 +485,18 @@ rest_request_close_index(Index) when is_binary(Index) ->
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri}.
 
-rest_request_is_index(Index) when is_binary(Index) ->
-    #restRequest{method = ?elasticsearch_Method_HEAD,
-                 uri = Index};
-
 rest_request_is_index(Index) when is_list(Index) ->
     IndexList = bstr:join(Index, <<",">>),
     #restRequest{method = ?elasticsearch_Method_HEAD,
                  uri = IndexList}.
 
-rest_request_is_type(Index, Type) when is_binary(Index),
-                                        is_binary(Type) ->
-    Uri = bstr:join([Index, Type], <<"/">>),
+rest_request_is_type(Index, Type) when is_list(Index),
+                                        is_list(Type) ->
+    IndexList = bstr:join(Index, <<",">>),
+    TypeList = bstr:join(Type, <<",">>),
+    Uri = bstr:join([IndexList, TypeList], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_HEAD,
-                 uri = Uri};
-
-
-rest_request_is_type(Index, Type) when is_list(Index),
-                                        is_binary(Type) ->
-    IndexList = bstr:join(Index, <<",">>),
-    rest_request_is_type(IndexList, Type);
-
-rest_request_is_type(Index, Type) when is_binary(Index),
-                                        is_list(Type) ->
-    TypeList = bstr:join(Type, <<",">>),
-    rest_request_is_type(Index, TypeList);
-
-rest_request_is_type(Index, Type) when is_list(Index),
-                                        is_list(Type) ->
-    IndexList = bstr:join(Index, <<",">>),
-    TypeList = bstr:join(Type, <<",">>),
-    rest_request_is_type(IndexList, TypeList).
+                 uri = Uri}.
 
 rest_request_insert_doc(Index, Type, undefined, Doc, Params) when is_binary(Index),
                                                       is_binary(Type),
@@ -471,11 +546,6 @@ rest_request_refresh() ->
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = ?REFRESH}.
 
-rest_request_refresh(Index) when is_binary(Index) ->
-    Uri = bstr:join([Index, ?REFRESH], <<"/">>),
-    #restRequest{method = ?elasticsearch_Method_POST,
-                 uri = Uri};
-
 rest_request_refresh(Index) when is_list(Index) ->
     IndexList = bstr:join(Index, <<",">>),
     Uri = bstr:join([IndexList, ?REFRESH], <<"/">>),
@@ -486,11 +556,6 @@ rest_request_flush() ->
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = ?FLUSH}.
 
-rest_request_flush(Index) when is_binary(Index) ->
-    Uri = bstr:join([Index, ?FLUSH], <<"/">>),
-    #restRequest{method = ?elasticsearch_Method_POST,
-                 uri = Uri};
-
 rest_request_flush(Index) when is_list(Index) ->
     IndexList = bstr:join(Index, <<",">>),
     Uri = bstr:join([IndexList, ?FLUSH], <<"/">>),
@@ -500,11 +565,6 @@ rest_request_flush(Index) when is_list(Index) ->
 rest_request_optimize() ->
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = ?OPTIMIZE}.
-
-rest_request_optimize(Index) when is_binary(Index) ->
-    Uri = bstr:join([Index, ?OPTIMIZE], <<"/">>),
-    #restRequest{method = ?elasticsearch_Method_POST,
-                 uri = Uri};
 
 rest_request_optimize(Index) when is_list(Index) ->
     IndexList = bstr:join(Index, <<",">>),

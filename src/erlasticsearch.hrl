@@ -18,6 +18,7 @@
 -type response()        :: {ok, #restResponse{}} | error().
 -type request()         :: #restRequest{}.
 -type connection()      :: any().
+-type node_name()       :: binary().
 -type index()           :: binary().
 -type type()            :: binary().
 -type id()              :: binary() | undefined.
@@ -39,7 +40,10 @@
 -define(NO_SUCH_SEQUENCE, no_such_sequence).
 
 %% Methods
+-define(STATE, <<"_cluster/state">>).
 -define(HEALTH, <<"_cluster/health">>).
+-define(NODES, <<"_cluster/nodes">>).
+-define(STATS, <<"stats">>).
 -define(STATUS, <<"_status">>).
 -define(SEARCH, <<"_search">>).
 -define(REFRESH, <<"_refresh">>).
