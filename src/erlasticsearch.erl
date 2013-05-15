@@ -152,12 +152,12 @@ search(ServerRef, Index, Type, Doc, Params) ->
     gen_server:call(get_target(ServerRef), {search, Index, Type, Doc, Params}).
 
 %% @doc Refresh all indices
--spec refresh(server_ref()) -> response().
+%-spec refresh(server_ref()) -> response().
 refresh(ServerRef) ->
     gen_server:call(get_target(ServerRef), {refresh}).
 
 %% @doc Refresh one or more indices
--spec refresh(server_ref(), [index() | [index()]]) -> response().
+%-spec refresh(server_ref(), [index() | [index()]]) -> response().
 refresh(ServerRef, Index) ->
     gen_server:call(get_target(ServerRef), {refresh, Index}).
 
@@ -185,65 +185,65 @@ init([ClientName, StartOptions]) ->
     {ok, #state{client_name = ClientName, 
                 connection = Connection}}.
 
-handle_call({Request = health}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {undefined}),
+handle_call({_Request = health}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_health(),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
-handle_call({Request = create_index, Index, Doc}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Index, Doc}),
+handle_call({_Request = create_index, Index, Doc}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_create_index(Index, Doc),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
-handle_call({Request = delete_index, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Index}),
+handle_call({_Request = delete_index, Index}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_delete_index(Index),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
-handle_call({Request = is_index, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Index}),
+handle_call({_Request = is_index, Index}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_is_index(Index),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     % Check if the result is 200 (true) or 404 (false)
     Result = is_200(RestResponse),
     {reply, Result, State#state{connection = Connection1}};
 
-handle_call({Request = insert_doc, Index, Type, Id, Doc, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Index, Type, Id, Doc, Params}),
+handle_call({_Request = insert_doc, Index, Type, Id, Doc, Params}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_insert_doc(Index, Type, Id, Doc, Params),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
-handle_call({Request = get_doc, Index, Type, Id, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Index, Type, Id, Params}),
+handle_call({_Request = get_doc, Index, Type, Id, Params}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_get_doc(Index, Type, Id, Params),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
-handle_call({Request = delete_doc, Index, Type, Id, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Index, Type, Id, Params}),
+handle_call({_Request = delete_doc, Index, Type, Id, Params}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_delete_doc(Index, Type, Id, Params),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
-handle_call({Request = search, Index, Type, Doc, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Index, Type, Doc, Params}),
+handle_call({_Request = search, Index, Type, Doc, Params}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_search(Index, Type, Doc, Params),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
-handle_call({Request = refresh}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {undefined}),
+handle_call({_Request = refresh}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_refresh(),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
-handle_call({Request = refresh, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Index}),
+handle_call({_Request = refresh, Index}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_refresh(Index),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
-handle_call({Request = flush}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {undefined}),
+handle_call({_Request = flush}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_flush(),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
-handle_call({Request = flush, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request(Request, {Index}),
+handle_call({_Request = flush, Index}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_flush(Index),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
@@ -284,29 +284,28 @@ process_request(Connection, Request) ->
 
 
 %% @doc Build a new rest request
--spec rest_request(method(), any()) -> request().
-rest_request(health, {undefined}) ->
+rest_request_health() ->
     #restRequest{method = ?elasticsearch_Method_GET,
-                 uri = ?HEALTH};
+                 uri = ?HEALTH}.
 
-rest_request(create_index, {Index, Doc}) when is_binary(Index),
+rest_request_create_index(Index, Doc) when is_binary(Index),
                                               is_binary(Doc) ->
     Uri = bstr:join([Index], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_PUT,
                  uri = Uri,
-                 body = Doc};
+                 body = Doc}.
 
-rest_request(delete_index, {Index}) when is_binary(Index) ->
+rest_request_delete_index(Index) when is_binary(Index) ->
     Uri = bstr:join([Index], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_DELETE,
-                 uri = Uri};
+                 uri = Uri}.
 
-rest_request(is_index, {Index}) when is_binary(Index) ->
+rest_request_is_index(Index) when is_binary(Index) ->
     Uri = bstr:join([Index], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_HEAD,
-                 uri = Uri};
+                 uri = Uri}.
 
-rest_request(insert_doc, {Index, Type, undefined, Doc, Params}) when is_binary(Index),
+rest_request_insert_doc(Index, Type, undefined, Doc, Params) when is_binary(Index),
                                                       is_binary(Type),
                                                       is_binary(Doc),
                                                       is_list(Params) ->
@@ -315,7 +314,7 @@ rest_request(insert_doc, {Index, Type, undefined, Doc, Params}) when is_binary(I
                  uri = Uri,
                  body = Doc};
 
-rest_request(insert_doc, {Index, Type, Id, Doc, Params}) when is_binary(Index),
+rest_request_insert_doc(Index, Type, Id, Doc, Params) when is_binary(Index),
                                                       is_binary(Type),
                                                       is_binary(Id),
                                                       is_binary(Doc),
@@ -323,58 +322,58 @@ rest_request(insert_doc, {Index, Type, Id, Doc, Params}) when is_binary(Index),
     Uri = make_uri([Index, Type, Id], Params),
     #restRequest{method = ?elasticsearch_Method_PUT,
                  uri = Uri,
-                 body = Doc};
+                 body = Doc}.
 
-rest_request(get_doc, {Index, Type, Id, Params}) when is_binary(Index),
+rest_request_get_doc(Index, Type, Id, Params) when is_binary(Index),
                                                    is_binary(Type),
                                                    is_binary(Id),
                                                    is_list(Params) ->
     Uri = make_uri([Index, Type, Id], Params),
     #restRequest{method = ?elasticsearch_Method_GET,
-                 uri = Uri};
+                 uri = Uri}.
 
-rest_request(delete_doc, {Index, Type, Id, Params}) when is_binary(Index),
+rest_request_delete_doc(Index, Type, Id, Params) when is_binary(Index),
                                                    is_binary(Type),
                                                    is_binary(Id),
                                                    is_list(Params) ->
     Uri = make_uri([Index, Type, Id], Params),
     #restRequest{method = ?elasticsearch_Method_DELETE,
-                 uri = Uri};
+                 uri = Uri}.
 
-rest_request(search, {Index, Type, Doc, Params}) when is_binary(Index),
+rest_request_search(Index, Type, Doc, Params) when is_binary(Index),
                                                    is_binary(Type),
                                                    is_binary(Doc),
                                                    is_list(Params) ->
     Uri = make_uri([Index, Type, ?SEARCH], Params),
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri,
-                 body = Doc};
+                 body = Doc}.
 
-rest_request(refresh, {undefined}) ->
+rest_request_refresh() ->
     #restRequest{method = ?elasticsearch_Method_POST,
-                 uri = ?REFRESH};
+                 uri = ?REFRESH}.
 
-rest_request(refresh, {Index}) when is_binary(Index) ->
+rest_request_refresh(Index) when is_binary(Index) ->
     Uri = bstr:join([Index, ?REFRESH], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri};
 
-rest_request(refresh, {Index}) when is_list(Index) ->
+rest_request_refresh(Index) when is_list(Index) ->
     IndexList = bstr:join(Index, <<",">>),
     Uri = bstr:join([IndexList, ?REFRESH], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_POST,
-                 uri = Uri};
+                 uri = Uri}.
 
-rest_request(flush, {undefined}) ->
+rest_request_flush() ->
     #restRequest{method = ?elasticsearch_Method_POST,
-                 uri = ?FLUSH};
+                 uri = ?FLUSH}.
 
-rest_request(flush, {Index}) when is_binary(Index) ->
+rest_request_flush(Index) when is_binary(Index) ->
     Uri = bstr:join([Index, ?FLUSH], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri};
 
-rest_request(flush, {Index}) when is_list(Index) ->
+rest_request_flush(Index) when is_list(Index) ->
     IndexList = bstr:join(Index, <<",">>),
     Uri = bstr:join([IndexList, ?FLUSH], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_POST,

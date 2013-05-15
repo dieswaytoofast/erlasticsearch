@@ -39,7 +39,7 @@
 -define(NO_SUCH_SEQUENCE, no_such_sequence).
 
 %% Methods
--define(HEALTH, "_cluster/health").
--define(SEARCH, "_search").
--define(REFRESH, "_refresh").
--define(FLUSH, "_flush").
+-define(HEALTH, <<"_cluster/health">>).
+-define(SEARCH, <<"_search">>).
+-define(REFRESH, <<"_refresh">>).
+-define(FLUSH, <<"_flush">>).
