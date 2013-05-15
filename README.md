@@ -74,7 +74,10 @@ Function | Parameters | Description
 create_index/2 | ServerRef, IndexName  | Creates the Index called _IndexName_
 create_index/3 | ServerRef, IndexName, Parameters | Creates the Index called _IndexName_, with additional options as specified [here](http://www.elasticsearch.org/guide/reference/api/admin-indices-create-index/)
 delete_index/2 | ServerRef, IndexName  | Deletes the Index called _IndexName_
-is_index/1 | IndexName  | Checks if the Index called _IndexName_ exists
+is_index/2 | ServerRef, IndexName  | Checks if the Index called _IndexName_ exists. (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
+is_type/3 | ServerRef, IndexName, TypeName  | Checks if the Type called _TypeName exists in the index _IndexName_. (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```), as well as a list of types (e.g. ```[<<"type1">>, <<"type2">>]```)
+open_index/2 | ServerRef, IndexName  | Opens the Index called _IndexName_
+close_index/2 | ServerRef, IndexName  | Closes the Index called _IndexName_
 
 
 
@@ -89,17 +92,38 @@ erlasticsearch@pecorino)2> erlasticsearch:create_index(<<"bar">>, <<"foo2">>).
 erlasticsearch@pecorino)3> erlasticsearch:create_index(<<"bar">>, <<"foo3">>, <<"{\"settings\":{\"number_of_shards\":3}}">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"acknowledged\":true}">>}}
-```
-```erlang
-erlasticsearch@pecorino)4> erlasticsearch:delete_index(<<"bar">>, <<"foo2">>).                                               
+erlasticsearch@pecorino)4> erlasticsearch:create_index(<<"bar">>, <<"foo4">>, <<"{\"settings\":{\"number_of_shards\":3}}">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"acknowledged\":true}">>}}
 ```
 ```erlang
-erlasticsearch@pecorino)5> erlasticsearch:is_index(<<"bar">>, <<"foo2">>).    
+erlasticsearch@pecorino)5> erlasticsearch:delete_index(<<"bar">>, <<"foo2">>).                                               
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"acknowledged\":true}">>}}
+```
+```erlang
+erlasticsearch@pecorino)6> erlasticsearch:is_index(<<"bar">>, <<"foo3">>).    
 false
-erlasticsearch@pecorino)6> erlasticsearch:is_index(<<"bar">>, <<"foo3">>).
+erlasticsearch@pecorino)7> erlasticsearch:is_index(<<"bar">>, <<"foo4">>).
 true
+erlasticsearch@pecorino)8> erlasticsearch:is_index(<<"bar">>, [<<"foo3">>, <<"foo4">>]).
+true
+erlasticsearch@pecorino)9> erlasticsearch:is_index(<<"bar">>, <<"no_such_index">>).
+false
+erlasticsearch@pecorino)10> erlasticsearch:is_type(<<"bar">>, <<"foo3">>, <<"existing_type_1">>).
+true
+erlasticsearch@pecorino)11> erlasticsearch:is_type(<<"bar">>, [<<"foo3">>, <<"foo4">>], <<"existing_type_1">>).
+true
+erlasticsearch@pecorino)11> erlasticsearch:is_type(<<"bar">>, [<<"foo3">>, <<"foo4">>], [<<"existing_type_1">>, <<"existing_type_2">>]).
+true
+```
+```erlang
+erlasticsearch@pecorino)12> erlasticsearch:open_index(<<"bar">>, <<"index1">>).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"acknowledged\":true}">>}}
+erlasticsearch@pecorino)13> erlasticsearch:close_index(<<"bar">>, <<"index1">>).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"acknowledged\":true}">>}}  
 ```
 
 
@@ -183,10 +207,10 @@ A bunch of functions that do "things" to indices (flush, refresh, etc.)
 Function | Parameters | Description
 ----- | ----------- | --------
 flush/1 | ServerRef  | Flushes all the indices
-flush/2 | ServerRef, Index | Flushes the specified Index.  ()Note that a list of Indices can also be sent in (e.g., ```[<<<"foo">>, <<"bar">>]```)
+flush/2 | ServerRef, Index | Flushes the index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
 refresh/1 | ServerRef  | Refreshes all the indices
-refresh/2 | ServerRef, Index | Refreshes the specified Index.  ()Note that a list of Indices can also be sent in (e.g., ```[<<<"foo">>, <<"bar">>]```)
-
+refresh/2 | ServerRef, Index | Refreshes the index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
+status/2 | ServerRef, Index | Returns the status of index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
 
 
 **EXAMPLES**
@@ -205,6 +229,36 @@ erlasticsearch@pecorino)6> erlasticsearch:refresh(<<"bar">>, <<"index1">>).     
 erlasticsearch@pecorino)7> erlasticsearch:refresh(<<"bar">>, [<<"index1">>, <<"index2">>]).
 {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":16,\"successful\":8,\"failed\":0}}">>}} 
 ```
+```erlang
+erlasticsearch@pecorino)8> erlasticsearch:status(<<"bar">>, <<"index1">>).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_shards\":{\"total\":6,\"successful\":3,\"failed\":0},\"indices\":{\"index1\":{\"index\":{\"prim"...>>}}
+erlasticsearch@pecorino)9> erlasticsearch:status(<<"bar">>, [<<"index1">>, <<"index2">>]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_shards\":{\"total\":16,\"successful\":8,\"failed\":0},\"indices\":{\"index2\":{\"index\":{\"pri"...>>}}
+```
+
+
+Cluster Helpers
+-----
+A bunch of functions that do "things" to clusters (health, etc.)
+
+Function | Parameters | Description
+----- | ----------- | --------
+health/1 | ServerRef  | Reports the health of the cluster
+
+
+**EXAMPLES**
+```erlang
+erlasticsearch@pecorino)1> erlasticsearch:start_client(<<"bar">>).
+{ok,<0.178.0>}
+erlasticsearch@pecorino)2> erlasticsearch:refresh(<<"bar">>).                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
+erlasticsearch@pecorino)3> erlasticsearch:health(<<"bar">>).                          
+{ok,{restResponse,200,undefined,
+                  <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"status\":\"yellow\",\"timed_out\":false,\"number_of_nodes\""...>>}}
+```
+
+
 
 Credits
 =======

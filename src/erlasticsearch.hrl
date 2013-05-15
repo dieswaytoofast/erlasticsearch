@@ -40,6 +40,9 @@
 
 %% Methods
 -define(HEALTH, <<"_cluster/health">>).
+-define(STATUS, <<"_status">>).
 -define(SEARCH, <<"_search">>).
 -define(REFRESH, <<"_refresh">>).
 -define(FLUSH, <<"_flush">>).
+-define(OPEN, <<"_open">>).
+-define(CLOSE, <<"_close">>).

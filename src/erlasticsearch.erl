@@ -26,17 +26,25 @@
 %% ElasticSearch
 % Tests
 -export([is_index/2]).
+-export([is_type/3]).
 
-% Status
+% Cluster helpers
 -export([health/1]).
 
-% CRUD
+% Index CRUD
 -export([create_index/2, create_index/3]).
 -export([delete_index/2]).
+-export([open_index/2]).
+-export([close_index/2]).
+
+% Doc CRUD
 -export([insert_doc/5, insert_doc/6]).
 -export([get_doc/4, get_doc/5]).
 -export([delete_doc/4, delete_doc/5]).
 -export([search/4, search/5]).
+
+%% Index helpers
+-export([status/2]).
 -export([refresh/1, refresh/2]).
 -export([flush/1, flush/2]).
 
@@ -88,10 +96,15 @@ start_client(ClientName, Options) when is_binary(ClientName),
 stop_client(ClientName) ->
     erlasticsearch_sup:stop_client(ClientName).
 
-%% @doc Get the health of the ElasticSearch cluster
+%% @doc Get the health the  ElasticSearch cluster
 -spec health(server_ref()) -> response().
 health(ServerRef) ->
     gen_server:call(get_target(ServerRef), {health}).
+
+%% @doc Get the status of an index/indices in the  ElasticSearch cluster
+-spec status(server_ref(), [index() | [index()]]) -> response().
+status(ServerRef, Index) ->
+    gen_server:call(get_target(ServerRef), {status, Index}).
 
 %% @equiv create_index(ServerRef, Index, <<>>)
 -spec create_index(server_ref(), index()) -> response().
@@ -108,10 +121,25 @@ create_index(ServerRef, Index, Doc) ->
 delete_index(ServerRef, Index) -> 
     gen_server:call(get_target(ServerRef), {delete_index, Index}).
 
-%% @doc Check if an index exists in the ElasticSearch cluster
--spec is_index(server_ref(), index()) -> boolean().
+%% @doc Open an index in the ElasticSearch cluster
+-spec open_index(server_ref(), index()) -> response().
+open_index(ServerRef, Index) -> 
+    gen_server:call(get_target(ServerRef), {open_index, Index}).
+
+%% @doc Close an index in the ElasticSearch cluster
+-spec close_index(server_ref(), index()) -> response().
+close_index(ServerRef, Index) -> 
+    gen_server:call(get_target(ServerRef), {close_index, Index}).
+
+%% @doc Check if an index/indices exists in the ElasticSearch cluster
+-spec is_index(server_ref(), [index() | [index()]]) -> boolean().
 is_index(ServerRef, Index) -> 
     gen_server:call(get_target(ServerRef), {is_index, Index}).
+
+%% @doc Check if a type exists in an index/indices in the ElasticSearch cluster
+-spec is_type(server_ref(), [index() | [index()]], [type() | [type()]]) -> boolean().
+is_type(ServerRef, Index, Type) -> 
+    gen_server:call(get_target(ServerRef), {is_type, Index, Type}).
 
 %% @equiv insert_doc(Index, Type, Id, Doc, []).
 -spec insert_doc(server_ref(), index(), type(), id(), doc()) -> response().
@@ -190,6 +218,11 @@ handle_call({_Request = health}, _From, State = #state{connection = Connection0}
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
+handle_call({_Request = status, Index}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_status(Index),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
 handle_call({_Request = create_index, Index, Doc}, _From, State = #state{connection = Connection0}) ->
     RestRequest = rest_request_create_index(Index, Doc),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
@@ -200,8 +233,25 @@ handle_call({_Request = delete_index, Index}, _From, State = #state{connection =
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
+handle_call({_Request = open_index, Index}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_open_index(Index),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({_Request = close_index, Index}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_close_index(Index),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
 handle_call({_Request = is_index, Index}, _From, State = #state{connection = Connection0}) ->
     RestRequest = rest_request_is_index(Index),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    % Check if the result is 200 (true) or 404 (false)
+    Result = is_200(RestResponse),
+    {reply, Result, State#state{connection = Connection1}};
+
+handle_call({_Request = is_type, Index, Type}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_is_type(Index, Type),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     % Check if the result is 200 (true) or 404 (false)
     Result = is_200(RestResponse),
@@ -288,22 +338,68 @@ rest_request_health() ->
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = ?HEALTH}.
 
+rest_request_status(Index) when is_binary(Index) ->
+    Uri = bstr:join([Index, ?STATUS], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_GET,
+                 uri = Uri};
+
+rest_request_status(Index) when is_list(Index) ->
+    IndexList = bstr:join(Index, <<",">>),
+    Uri = bstr:join([IndexList, ?STATUS], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_GET,
+                 uri = Uri}.
+
 rest_request_create_index(Index, Doc) when is_binary(Index),
                                               is_binary(Doc) ->
-    Uri = bstr:join([Index], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_PUT,
-                 uri = Uri,
+                 uri = Index,
                  body = Doc}.
 
 rest_request_delete_index(Index) when is_binary(Index) ->
-    Uri = bstr:join([Index], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_DELETE,
+                 uri = Index}.
+
+rest_request_open_index(Index) when is_binary(Index) ->
+    Uri = bstr:join([Index, ?OPEN], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_POST,
+                 uri = Uri}.
+
+rest_request_close_index(Index) when is_binary(Index) ->
+    Uri = bstr:join([Index, ?CLOSE], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri}.
 
 rest_request_is_index(Index) when is_binary(Index) ->
-    Uri = bstr:join([Index], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_HEAD,
-                 uri = Uri}.
+                 uri = Index};
+
+rest_request_is_index(Index) when is_list(Index) ->
+    IndexList = bstr:join(Index, <<",">>),
+    #restRequest{method = ?elasticsearch_Method_HEAD,
+                 uri = IndexList}.
+
+rest_request_is_type(Index, Type) when is_binary(Index),
+                                        is_binary(Type) ->
+    Uri = bstr:join([Index, Type], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_HEAD,
+                 uri = Uri};
+
+
+rest_request_is_type(Index, Type) when is_list(Index),
+                                        is_binary(Type) ->
+    IndexList = bstr:join(Index, <<",">>),
+    rest_request_is_type(IndexList, Type);
+
+rest_request_is_type(Index, Type) when is_binary(Index),
+                                        is_list(Type) ->
+    TypeList = bstr:join(Type, <<",">>),
+    rest_request_is_type(Index, TypeList);
+
+rest_request_is_type(Index, Type) when is_list(Index),
+                                        is_list(Type) ->
+    IndexList = bstr:join(Index, <<",">>),
+    TypeList = bstr:join(Type, <<",">>),
+    rest_request_is_type(IndexList, TypeList).
 
 rest_request_insert_doc(Index, Type, undefined, Doc, Params) when is_binary(Index),
                                                       is_binary(Type),

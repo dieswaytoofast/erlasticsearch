@@ -70,22 +70,30 @@ end_per_testcase(_TestCase, _Config) ->
 
 groups() ->
     [{crud_index, [],
-      [t_is_index,
-       t_create_index, 
-       t_create_index_with_shards
+       [t_is_index_1,
+        t_is_index_all,
+        t_is_type_1,
+        t_is_type_all,
+        t_create_index, 
+        t_create_index_with_shards,
+        t_open_index
       ]},
      {index_helpers, [],
-       [t_flush_1,
-       t_flush_list,
-       t_flush_all,
-       t_refresh_1,
-       t_refresh_list,
-       t_refresh_all
+        [t_flush_1,
+        t_flush_list,
+        t_flush_all,
+        t_refresh_1,
+        t_refresh_list,
+        t_refresh_all
        ]},
     {crud_doc, [],
       [t_insert_doc, 
        t_get_doc, 
        t_delete_doc
+      ]},
+     {test, [],
+      [
+       t_open_index
       ]},
      {search, [],
       [t_search
@@ -94,19 +102,93 @@ groups() ->
 
 all() ->
     [
+%        {group, test}
         {group, crud_index}, 
         {group, crud_doc}, 
         {group, search},
         {group, index_helpers}
     ].
 
-t_is_index(Config) ->
+t_is_index_1(Config) ->
     ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
     create_indices(ClientName, Index),
-    are_indices(ClientName, Index),
+    are_indices_1(ClientName, Index),
     delete_all_indices(ClientName, Index).
 
+t_is_index_all(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    are_indices_all(ClientName, Index),
+    delete_all_indices(ClientName, Index).
+
+t_is_type_1(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    build_data(ClientName, Index, Type),
+    are_types_1(ClientName, Index, Type),
+    clear_data(ClientName, Index).
+
+t_is_type_all(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    build_data(ClientName, Index, Type),
+    are_types_all(ClientName, Index, Type),
+    clear_data(ClientName, Index).
+
+are_types_1(ClientName, Index, Type) ->
+    lists:foreach(fun(X) ->
+                FullIndex = enumerated(Index, X),
+                lists:foreach(fun(Y) ->
+                            FullType = enumerated(Type, Y),
+                            true = erlasticsearch:is_type(ClientName, FullIndex, FullType)
+                    end, lists:seq(1, ?DOCUMENT_DEPTH))
+        end, lists:seq(1, ?DOCUMENT_DEPTH)).
+
+are_types_all(ClientName, Index, Type) ->
+    FullIndexList = 
+    lists:map(fun(X) ->
+                enumerated(Index, X)
+            end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    FullTypeList = 
+    lists:map(fun(X) ->
+                enumerated(Type, X)
+            end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    % List of indices
+    lists:foreach(fun(X) ->
+                FullType = enumerated(Type, X),
+                true = erlasticsearch:is_type(ClientName, FullIndexList, FullType)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    % List of types
+    lists:foreach(fun(X) ->
+                FullIndex = enumerated(Index, X),
+                true = erlasticsearch:is_type(ClientName, FullIndex, FullTypeList)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    % List of indices and types
+    true = erlasticsearch:is_type(ClientName, FullIndexList, FullTypeList).
+
+build_data(ClientName, Index, Type) ->
+    lists:foreach(fun(X) ->
+                FullIndex = enumerated(Index, X),
+                lists:foreach(fun(Y) ->
+                            FullType = enumerated(Type, Y),
+                            BX = list_to_binary(integer_to_list(X)),
+                            erlasticsearch:insert_doc(ClientName, FullIndex, 
+                                                      FullType, BX, json_document(X))
+                    end, lists:seq(1, ?DOCUMENT_DEPTH))
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    erlasticsearch:refresh(ClientName).
+
+clear_data(ClientName, Index) ->
+    lists:foreach(fun(X) ->
+                FullIndex = enumerated(Index, X),
+                erlasticsearch:delete_index(ClientName, FullIndex)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)).
+
+% Also deletes indices
 t_create_index(Config) ->
     ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
@@ -127,7 +209,6 @@ t_flush_1(Config) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = bstr:join([Index, BX], <<"_">>),
                 Response = erlasticsearch:flush(ClientName, FullIndex),
-                ct:pal("Flush one Index:~p~n", [Response]),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
     delete_all_indices(ClientName, Index).
@@ -142,7 +223,6 @@ t_flush_list(Config) ->
                 bstr:join([Index, BX], <<"_">>)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     Response = erlasticsearch:flush(ClientName, Indexes),
-    ct:pal("Flush list Index:~p~n", [Response]),
     true = erlasticsearch:is_200(Response),
     delete_all_indices(ClientName, Index).
 
@@ -151,7 +231,6 @@ t_flush_all(Config) ->
     Index = ?config(index, Config),
     create_indices(ClientName, Index),
     Response = erlasticsearch:flush(ClientName),
-    ct:pal("Flush all Index:~p~n", [Response]),
     true = erlasticsearch:is_200(Response),
     delete_all_indices(ClientName, Index).
 
@@ -163,7 +242,6 @@ t_refresh_1(Config) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = bstr:join([Index, BX], <<"_">>),
                 Response = erlasticsearch:refresh(ClientName, FullIndex),
-                ct:pal("Flush one Index:~p~n", [Response]),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
     delete_all_indices(ClientName, Index).
@@ -178,7 +256,6 @@ t_refresh_list(Config) ->
                 bstr:join([Index, BX], <<"_">>)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     Response = erlasticsearch:refresh(ClientName, Indexes),
-    ct:pal("Flush list Index:~p~n", [Response]),
     true = erlasticsearch:is_200(Response),
     delete_all_indices(ClientName, Index).
 
@@ -187,15 +264,23 @@ t_refresh_all(Config) ->
     Index = ?config(index, Config),
     create_indices(ClientName, Index),
     Response = erlasticsearch:refresh(ClientName),
-    ct:pal("Flush all Index:~p~n", [Response]),
     true = erlasticsearch:is_200(Response),
     delete_all_indices(ClientName, Index).
 
 
+t_open_index(Config) ->
+        t_insert_doc(Config),
+        ClientName = ?config(client_name, Config),
+        Index = ?config(index, Config),
+        Response = erlasticsearch:close_index(ClientName, Index),
+        true = erlasticsearch:is_200(Response),
+        Response = erlasticsearch:open_index(ClientName, Index),
+        true = erlasticsearch:is_200(Response),
+        t_delete_doc(Config).
+        
 
 t_search(Config) ->
     t_insert_doc(Config),
-
     ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
@@ -227,6 +312,7 @@ hits_from_result({ok, {_, _, _, JSON}}) ->
 
 
 
+
 t_insert_doc(Config) ->
     ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
@@ -235,7 +321,6 @@ t_insert_doc(Config) ->
                 BX = list_to_binary(integer_to_list(X)),
                 Response = erlasticsearch:insert_doc(ClientName, Index, 
                                                      Type, BX, json_document(X)),
-                ct:pal("Insert:~p~n", [Response]),
                 true = erlasticsearch:is_200_or_201(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
@@ -246,7 +331,6 @@ t_get_doc(Config) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 Response = erlasticsearch:get_doc(ClientName, Index, Type, BX),
-                ct:pal("Get:~p~n", [Response]),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
@@ -257,7 +341,6 @@ t_delete_doc(Config) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 Response = erlasticsearch:delete_doc(ClientName, Index, Type, BX),
-                ct:pal("Delete:~p~n", [Response]),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
@@ -268,19 +351,25 @@ create_indices(ClientName, Index) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = bstr:join([Index, BX], <<"_">>),
                 Response = erlasticsearch:create_index(ClientName, FullIndex),
-                ct:pal("Create Index:~p~n", [Response]),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
-are_indices(ClientName, Index) ->
+are_indices_1(ClientName, Index) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = bstr:join([Index, BX], <<"_">>),
                 true = erlasticsearch:is_index(ClientName, FullIndex)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
+are_indices_all(ClientName, Index) ->
+    FullIndexList = 
+    lists:map(fun(X) ->
+                BX = list_to_binary(integer_to_list(X)),
+                bstr:join([Index, BX], <<"_">>)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    true = erlasticsearch:is_index(ClientName, FullIndexList).
+
 delete_all_indices(Config) ->
-    ct:pal("Config:~p~n", [Config]),
     ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
     IndexWithShards = bstr:join([Index, <<"with_shards">>], <<"_">>),
@@ -314,7 +403,6 @@ delete_all_indices(ClientName, Index, CheckIndex) ->
 
 delete_this_index(ClientName, Index) ->
     Response = erlasticsearch:delete_index(ClientName, Index),
-    ct:pal("Delete Index:~p~n", [{erlasticsearch:is_200(Response), Response}]),
     true = erlasticsearch:is_200(Response).
 
 json_document(N) ->
@@ -335,6 +423,8 @@ document(N) ->
 key(N) -> data_index(key, N).
 value(N) -> data_index(value, N).
 sub(N) -> data_index(sub, N).
+enumerated(Item, N) when is_binary(Item) ->
+    data_index(list_to_atom(binary_to_list(Item)), N).
 
 -spec data_index(atom(), integer()) -> binary().
 data_index(Data, Index) ->
