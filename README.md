@@ -64,9 +64,12 @@ erlasticsearch@pecorino)2>{ok, Pid} = erlasticsearch:start_client(<<"bar2">>, [{
 {ok,<0.182.0>}
 erlasticsearch@pecorino)3> erlasticsearch:registered_name(<<"bar2">>).
 'erlasticsearch_bar2.client'
-erlasticsearch@pecorino)4> erlasticsearch:flush(<<"bar2">>).                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
-erlasticsearch@pecorino)5> erlasticsearch:flush('erlasticsearch_bar2.client').                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
-erlasticsearch@pecorino)6> erlasticsearch:flush(Pid).                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
+erlasticsearch@pecorino)4> erlasticsearch:flush(<<"bar2">>).
+{ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
+erlasticsearch@pecorino)5> erlasticsearch:flush('erlasticsearch_bar2.client').
+{ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
+erlasticsearch@pecorino)6> erlasticsearch:flush(Pid).
+{ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
 erlasticsearch@pecorino)7> erlasticsearch:stop_client(<<"bar1">>).
 ok
 erlasticsearch@pecorino)8> erlasticsearch:stop_client(<<"bar2">>).
