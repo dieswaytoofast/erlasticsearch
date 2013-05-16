@@ -44,24 +44,32 @@ Details
 
 Client Process Management
 -----
-These methods are available to start and stop the thrift client processes
+These methods are available to start and stop the thrift client processes.
+Note that once the process has been started, you can reference it through either _ClientName_, the Pid, or the name it is registered under (```erlasticsearch:registered_name/1```)
 
 Function | Parameters | Description
 ----- | ----------- | --------
 start_client/1 | ClientName  | Start a client process reference-able as _ClientName_
 start_client/2 | ClientName, Parameters | Start a client process reference-able as _ClientName_, with additional thrift parameters (also settable as _thrift_options_ in ```app.config```)
 stop_client/1 | ClientName  | Stop the client process references as _ClientName_
+registered_name/1 | ClientName  | The atom that the thrift client process is registered under
+
 
 **EXAMPLES**
 
 ```erlang
 erlasticsearch@pecorino)1> erlasticsearch:start_client(<<"bar1">>).
 {ok,<0.178.0>}
-erlasticsearch@pecorino)2>erlasticsearch:start_client(<<"bar2">>, [{framed, true}]).
+erlasticsearch@pecorino)2>{ok, Pid} = erlasticsearch:start_client(<<"bar2">>, [{framed, true}]).
 {ok,<0.182.0>}
-erlasticsearch@pecorino)3> erlasticsearch:stop_client(<<"bar1">>).
+erlasticsearch@pecorino)3> erlasticsearch:registered_name(<<"bar2">>).
+'erlasticsearch_bar2.client'
+erlasticsearch@pecorino)4> erlasticsearch:flush(<<"bar2">>).                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
+erlasticsearch@pecorino)5> erlasticsearch:flush('erlasticsearch_bar2.client').                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
+erlasticsearch@pecorino)6> erlasticsearch:flush(Pid).                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
+erlasticsearch@pecorino)7> erlasticsearch:stop_client(<<"bar1">>).
 ok
-erlasticsearch@pecorino)4> erlasticsearch:stop_client(<<"bar2">>).
+erlasticsearch@pecorino)8> erlasticsearch:stop_client(<<"bar2">>).
 ok
 ```
 
