@@ -116,11 +116,11 @@ groups() ->
 all() ->
     [
 %        {group, test}
-%        {group, crud_index}, 
-%        {group, crud_doc}, 
-%        {group, search},
-        {group, index_helpers}
-%        {group, cluster_helpers}
+        {group, crud_index}, 
+        {group, crud_doc}, 
+        {group, search},
+        {group, index_helpers},
+        {group, cluster_helpers}
     ].
 
 t_health(Config) ->
