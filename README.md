@@ -86,7 +86,7 @@ create_index/2 | ServerRef, IndexName  | Creates the Index called _IndexName_
 create_index/3 | ServerRef, IndexName, Parameters | Creates the Index called _IndexName_, with additional options as specified [here](http://www.elasticsearch.org/guide/reference/api/admin-indices-create-index/)
 delete_index/2 | ServerRef, IndexName  | Deletes the Index called _IndexName_
 is_index/2 | ServerRef, IndexName  | Checks if the Index called _IndexName_ exists. (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
-is_type/3 | ServerRef, IndexName, TypeName  | Checks if the Type called _TypeName exists in the index _IndexName_. (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```. This list can also be empty - ```[]```), as well as a list of types (e.g. ```[<<"type1">>, <<"type2">>]``` This list can also be empty - ```[]```)
+is_type/3 | ServerRef, IndexName, TypeName  | Checks if the Type called _TypeName exists in the index _IndexName_. (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```), as well as a list of types (e.g. ```[<<"type1">>, <<"type2">>]```)
 open_index/2 | ServerRef, IndexName  | Opens the Index called _IndexName_
 close_index/2 | ServerRef, IndexName  | Closes the Index called _IndexName_
 
