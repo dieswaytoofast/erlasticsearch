@@ -87,7 +87,9 @@ groups() ->
         t_refresh_all,
         t_optimize_1,
         t_optimize_list,
-        t_optimize_all
+        t_optimize_all,
+        t_status_1,
+        t_status_all
 
        ]},
     {crud_doc, [],
@@ -97,8 +99,15 @@ groups() ->
       ]},
      {test, [],
       [
-       t_open_index
+       t_health
       ]},
+     {cluster_helpers, [],
+      [t_health,
+       t_state,
+       t_nodes_info,
+       t_nodes_stats
+      ]},
+
      {search, [],
       [t_search
       ]}
@@ -107,11 +116,48 @@ groups() ->
 all() ->
     [
 %        {group, test}
-        {group, crud_index}, 
-        {group, crud_doc}, 
-        {group, search},
+%        {group, crud_index}, 
+%        {group, crud_doc}, 
+%        {group, search},
         {group, index_helpers}
+%        {group, cluster_helpers}
     ].
+
+t_health(Config) ->
+    ClientName = ?config(client_name, Config),
+    Response = erlasticsearch:health(ClientName),
+    true = erlasticsearch:is_200(Response).
+
+t_state(Config) ->
+    ClientName = ?config(client_name, Config),
+    Response1 = erlasticsearch:state(ClientName),
+    true = erlasticsearch:is_200(Response1),
+    Response2 = erlasticsearch:state(ClientName, [{filter_nodes, true}]),
+    true = erlasticsearch:is_200(Response2).
+
+t_nodes_info(Config) ->
+    ClientName = ?config(client_name, Config),
+    Response1 = erlasticsearch:nodes_info(ClientName),
+    true = erlasticsearch:is_200(Response1).
+
+t_nodes_stats(Config) ->
+    ClientName = ?config(client_name, Config),
+    Response1 = erlasticsearch:nodes_stats(ClientName),
+    true = erlasticsearch:is_200(Response1).
+
+t_status_1(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    check_status_1(ClientName, Index),
+    delete_all_indices(ClientName, Index).
+
+t_status_all(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    check_status_all(ClientName, Index),
+    delete_all_indices(ClientName, Index).
 
 t_is_index_1(Config) ->
     ClientName = ?config(client_name, Config),
@@ -142,6 +188,22 @@ t_is_type_all(Config) ->
     build_data(ClientName, Index, Type),
     are_types_all(ClientName, Index, Type),
     clear_data(ClientName, Index).
+
+check_status_1(ClientName, Index) ->
+    lists:foreach(fun(X) ->
+                FullIndex = enumerated(Index, X),
+                Response = erlasticsearch:status(ClientName, FullIndex),
+                true = erlasticsearch:is_200(Response)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)).
+
+check_status_all(ClientName, Index) ->
+    FullIndexList = 
+    lists:map(fun(X) ->
+                enumerated(Index, X)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    Response = erlasticsearch:status(ClientName, FullIndexList),
+    true = erlasticsearch:is_200(Response).
+
 
 are_types_1(ClientName, Index, Type) ->
     lists:foreach(fun(X) ->
