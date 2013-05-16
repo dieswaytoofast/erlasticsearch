@@ -51,3 +51,5 @@
 -define(OPEN, <<"_open">>).
 -define(CLOSE, <<"_close">>).
 -define(OPTIMIZE, <<"_optimize">>).
+-define(SEGMENTS, <<"_segments">>).
+-define(CLEAR_CACHE, <<"_cache/clear">>).

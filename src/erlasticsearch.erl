@@ -52,7 +52,8 @@
 -export([refresh/1, refresh/2]).
 -export([flush/1, flush/2]).
 -export([optimize/1, optimize/2]).
-%-export([clear_cache/1, clear_cache/2, clear_cache/3]).
+-export([clear_cache/1, clear_cache/2, clear_cache/3]).
+-export([segments/1, segments/2]).
 
 -export([is_200/1, is_200_or_201/1]).
 
@@ -280,6 +281,39 @@ optimize(ServerRef, Index) when is_binary(Index) ->
 optimize(ServerRef, Indexes) when is_list(Indexes) ->
     gen_server:call(get_target(ServerRef), {optimize, Indexes}).
 
+%% @equiv segments(ServerRef, []).
+%% @doc Optimize all indices
+-spec segments(server_ref()) -> response().
+segments(ServerRef) ->
+    segments(ServerRef, []).
+
+%% @doc Optimize one or more indices
+-spec segments(server_ref(), [index() | [index()]]) -> response().
+segments(ServerRef, Index) when is_binary(Index) ->
+    segments(ServerRef, [Index]);
+segments(ServerRef, Indexes) when is_list(Indexes) ->
+    gen_server:call(get_target(ServerRef), {segments, Indexes}).
+
+%% @equiv clear_cache(ServerRef, [], []).
+%% @doc Clear all the caches
+-spec clear_cache(server_ref()) -> response().
+clear_cache(ServerRef) ->
+    clear_cache(ServerRef, [], []).
+
+%% @equiv clear_cache(ServerRef, Indexes, []).
+-spec clear_cache(server_ref(), [index() | [index()]]) -> response().
+clear_cache(ServerRef, Index) when is_binary(Index) ->
+    clear_cache(ServerRef, [Index], []);
+clear_cache(ServerRef, Indexes) when is_list(Indexes) ->
+    clear_cache(ServerRef, Indexes, []).
+
+%% @equiv clear_cache(ServerRef, Indexes, []).
+-spec clear_cache(server_ref(), [index() | [index()]], params()) -> response().
+clear_cache(ServerRef, Index, Params) when is_binary(Index), is_list(Params) ->
+    clear_cache(ServerRef, [Index], Params);
+clear_cache(ServerRef, Indexes, Params) when is_list(Indexes), is_list(Params) ->
+    gen_server:call(get_target(ServerRef), {clear_cache, Indexes, Params}).
+
 
 
 %% ------------------------------------------------------------------
@@ -385,6 +419,16 @@ handle_call({_Request = flush, Index}, _From, State = #state{connection = Connec
 
 handle_call({_Request = optimize, Index}, _From, State = #state{connection = Connection0}) ->
     RestRequest = rest_request_optimize(Index),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({_Request = segments, Index}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_segments(Index),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({_Request = clear_cache, Index, Params}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_clear_cache(Index, Params),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
@@ -549,6 +593,17 @@ rest_request_optimize(Index) when is_list(Index) ->
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri}.
 
+rest_request_segments(Index) when is_list(Index) ->
+    IndexList = bstr:join(Index, <<",">>),
+    Uri = bstr:join([IndexList, ?SEGMENTS], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_GET,
+                 uri = Uri}.
+
+rest_request_clear_cache(Index, Params) when is_list(Index) ->
+    IndexList = bstr:join(Index, <<",">>),
+    Uri = make_uri([IndexList, ?CLEAR_CACHE], Params),
+    #restRequest{method = ?elasticsearch_Method_POST,
+                 uri = Uri}.
 
 
 %% @doc Make a complete URI based on the tokens and props

@@ -86,7 +86,7 @@ create_index/2 | ServerRef, IndexName  | Creates the Index called _IndexName_
 create_index/3 | ServerRef, IndexName, Parameters | Creates the Index called _IndexName_, with additional options as specified [here](http://www.elasticsearch.org/guide/reference/api/admin-indices-create-index/)
 delete_index/2 | ServerRef, IndexName  | Deletes the Index called _IndexName_
 is_index/2 | ServerRef, IndexName  | Checks if the Index called _IndexName_ exists. (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
-is_type/3 | ServerRef, IndexName, TypeName  | Checks if the Type called _TypeName exists in the index _IndexName_. (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```), as well as a list of types (e.g. ```[<<"type1">>, <<"type2">>]```)
+is_type/3 | ServerRef, IndexName, TypeName  | Checks if the Type called _TypeName exists in the index _IndexName_. (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```. This list can also be empty - ```[]```), as well as a list of types (e.g. ```[<<"type1">>, <<"type2">>]``` This list can also be empty - ```[]```)
 open_index/2 | ServerRef, IndexName  | Opens the Index called _IndexName_
 close_index/2 | ServerRef, IndexName  | Closes the Index called _IndexName_
 
@@ -220,10 +220,15 @@ Function | Parameters | Description
 flush/1 | ServerRef  | Flushes all the indices
 flush/2 | ServerRef, Index | Flushes the index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
 optimize/1 | ServerRef  | Optimizes all the indices
-optimize/2 | ServerRef, Index | Optimizes the index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
+optimize/2 | ServerRef, Index | Optimizes the index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]``` This list can also be empty - ```[]```)
+segments/1 | ServerRef  | Provides segment information for all the indices in the cluster
+segments/2 | ServerRef, Index | Provides segment information for the index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]``` This list can also be empty - ```[]```)
 refresh/1 | ServerRef  | Refreshes all the indices
-refresh/2 | ServerRef, Index | Refreshes the index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
-status/2 | ServerRef, Index | Returns the status of index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```)
+refresh/2 | ServerRef, Index | Refreshes the index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]``` This list can also be empty - ```[]```)
+status/2 | ServerRef, Index | Returns the status of index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]``` This list can also be empty - ```[]```)
+clear_cache/1 | ServerRef  | Clears all the caches in the cluster
+clear_cache/2 | ServerRef, Index | Clears all the caches associated with the index _IndexName_.  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]``` This list can also be empty - ```[]```)
+clear_cache/3 | ServerRef, Index, params | Clears all the caches associated with the index _IndexName_, using _Params_  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]``` This list can also be empty - ```[]```)
 
 
 **EXAMPLES**
@@ -259,6 +264,31 @@ erlasticsearch@pecorino)12> erlasticsearch:optimize(<<"bar">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"_shards\":{\"total\":692,\"successful\":346,\"failed\":0}}">>}}                  
 ```
+```erlang
+erlasticsearch@pecorino)13> erlasticsearch:segments(<<"bar1">>).                                     
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_shards\":{\"total\":170,\"successful\":85,\"failed\":0},\"indices\":{\"test_1\":{\"shards\":"...>>}}
+erlasticsearch@pecorino)14> erlasticsearch:segments(<<"bar1">>, [<<"index1">>]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_shards\":{\"total\":10,\"successful\":5,\"failed\":0},\"indices\":{\"index1\":{\"shards\":{\""...>>}}
+erlasticsearch@pecorino)15> erlasticsearch:segments(<<"bar1">>, [<<"index1">>, <<"index2">>]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_shards\":{\"total\":20,\"successful\":10,\"failed\":0},\"indices\":{\"index1\":{\"shards\":{"...>>}}
+```
+```erlang
+erlasticsearch@pecorino)16> erlasticsearch:clear_cache(<<"bar1">>).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_shards\":{\"total\":130,\"successful\":65,\"failed\":0}}">>}}
+erlasticsearch@pecorino)17> erlasticsearch:clear_cache(<<"bar1">>, [<<"index1">>]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_shards\":{\"total\":10,\"successful\":5,\"failed\":0}}">>}}
+erlasticsearch@pecorino)18> erlasticsearch:clear_cache(<<"bar1">>, [<<"index1">>], [{filter, true}]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_shards\":{\"total\":10,\"successful\":5,\"failed\":0}}">>}}
+erlasticsearch@pecorino)19> erlasticsearch:clear_cache(<<"bar1">>, [], [{filter, true}]).            
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_shards\":{\"total\":140,\"successful\":70,\"failed\":0}}">>}}         
+```
 
 
 Cluster Helpers
@@ -271,11 +301,11 @@ health/1 | ServerRef  | Reports the health of the cluster
 state/1 | ServerRef  | Reports the state of the cluster
 state/2 | ServerRef, Params  | Reports the state of the cluster, with optional parameters
 nodes_info/1 | ServerRef  | Reports the state of all the nodes in the cluster
-nodes_info/2 | ServerRef, NodeName  | Reports the state of the node _NodeName_ in the cluster. (Note that a list of Nodes can also be sent in (e.g., ```[<<"node1">>, <<"node2">>]```)
-nodes_info/3 | ServerRef, NodeName, Params  | Reports the state of the node _NodeName_ in the cluster, with optional _Params_. (Note that a list of Nodes can also be sent in (e.g., ```[<<"node1">>, <<"node2">>]```)
+nodes_info/2 | ServerRef, NodeName  | Reports the state of the node _NodeName_ in the cluster. (Note that a list of Nodes can also be sent in (e.g., ```[<<"node1">>, <<"node2">>]``` This list can also be empty - ```[]```)
+nodes_info/3 | ServerRef, NodeName, Params  | Reports the state of the node _NodeName_ in the cluster, with optional _Params_. (Note that a list of Nodes can also be sent in (e.g., ```[<<"node1">>, <<"node2">>]``` This list can also be empty - ```[]```)
 nodes_stats/1 | ServerRef  | Reports stats on all the nodes in the cluster
 nodes_stats/2 | ServerRef, NodeName  | Reports the stats of the node _NodeName_ in the cluster. (Note that a list of Nodes can also be sent in (e.g., ```[<<"node1">>, <<"node2">>]```)
-nodes_stats/3 | ServerRef, NodeName, Params  | Reports the stats of the node _NodeName_ in the cluster, with optional _Params_. (Note that a list of Nodes can also be sent in (e.g., ```[<<"node1">>, <<"node2">>]```)
+nodes_stats/3 | ServerRef, NodeName, Params  | Reports the stats of the node _NodeName_ in the cluster, with optional _Params_. (Note that a list of Nodes can also be sent in (e.g., ```[<<"node1">>, <<"node2">>]``` This list can also be empty - ```[]```)
 
 
 **EXAMPLES**

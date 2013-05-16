@@ -88,8 +88,14 @@ groups() ->
         t_optimize_1,
         t_optimize_list,
         t_optimize_all,
+        t_segments_1,
+        t_segments_list,
+        t_segments_all,
         t_status_1,
-        t_status_all
+        t_status_all,
+        t_clear_cache_1,
+        t_clear_cache_list,
+        t_clear_cache_all
 
        ]},
     {crud_doc, [],
@@ -159,6 +165,27 @@ t_status_all(Config) ->
     check_status_all(ClientName, Index),
     delete_all_indices(ClientName, Index).
 
+t_clear_cache_1(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    clear_cache_1(ClientName, Index),
+    delete_all_indices(ClientName, Index).
+
+t_clear_cache_list(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    clear_cache_list(ClientName, Index),
+    delete_all_indices(ClientName, Index).
+
+t_clear_cache_all(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    clear_cache_all(ClientName, Index),
+    delete_all_indices(ClientName, Index).
+
 t_is_index_1(Config) ->
     ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
@@ -203,6 +230,31 @@ check_status_all(ClientName, Index) ->
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
     Response = erlasticsearch:status(ClientName, FullIndexList),
     true = erlasticsearch:is_200(Response).
+
+clear_cache_1(ClientName, Index) ->
+    lists:foreach(fun(X) ->
+                FullIndex = enumerated(Index, X),
+                Response1 = erlasticsearch:clear_cache(ClientName, FullIndex),
+                true = erlasticsearch:is_200(Response1),
+                Response2 = erlasticsearch:clear_cache(ClientName, FullIndex, [{filter, true}]),
+                true = erlasticsearch:is_200(Response2)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)).
+
+clear_cache_list(ClientName, Index) ->
+    FullIndexList = 
+    lists:map(fun(X) ->
+                enumerated(Index, X)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    Response1 = erlasticsearch:clear_cache(ClientName, FullIndexList),
+    true = erlasticsearch:is_200(Response1),
+    Response2 = erlasticsearch:clear_cache(ClientName, FullIndexList, [{filter, true}]),
+    true = erlasticsearch:is_200(Response2).
+
+clear_cache_all(ClientName, _Index) ->
+    Response1 = erlasticsearch:clear_cache(ClientName),
+    true = erlasticsearch:is_200(Response1),
+    Response2 = erlasticsearch:clear_cache(ClientName, [], [{filter, true}]),
+    true = erlasticsearch:is_200(Response2).
 
 
 are_types_1(ClientName, Index, Type) ->
@@ -363,6 +415,39 @@ t_optimize_all(Config) ->
     Index = ?config(index, Config),
     create_indices(ClientName, Index),
     Response = erlasticsearch:optimize(ClientName),
+    true = erlasticsearch:is_200(Response),
+    delete_all_indices(ClientName, Index).
+
+t_segments_1(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    lists:foreach(fun(X) ->
+                BX = list_to_binary(integer_to_list(X)),
+                FullIndex = bstr:join([Index, BX], <<"_">>),
+                Response = erlasticsearch:segments(ClientName, FullIndex),
+                true = erlasticsearch:is_200(Response)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    delete_all_indices(ClientName, Index).
+
+t_segments_list(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    Indexes = 
+    lists:map(fun(X) ->
+                BX = list_to_binary(integer_to_list(X)),
+                bstr:join([Index, BX], <<"_">>)
+            end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    Response = erlasticsearch:segments(ClientName, Indexes),
+    true = erlasticsearch:is_200(Response),
+    delete_all_indices(ClientName, Index).
+
+t_segments_all(Config) ->
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    create_indices(ClientName, Index),
+    Response = erlasticsearch:segments(ClientName),
     true = erlasticsearch:is_200(Response),
     delete_all_indices(ClientName, Index).
 
