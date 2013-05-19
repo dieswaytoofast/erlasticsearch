@@ -50,6 +50,7 @@
 -define(FLUSH, <<"_flush">>).
 -define(OPEN, <<"_open">>).
 -define(CLOSE, <<"_close">>).
+-define(MGET, <<"_mget">>).
 -define(COUNT, <<"_count">>).
 -define(QUERY, <<"_query">>).
 -define(OPTIMIZE, <<"_optimize">>).

@@ -13,6 +13,9 @@ Add this as a rebar dependency to your project.
       * ```thrift.port: 9500```
       * ```thrift.protocol: 'binary'```
     * You might want to set the port to whatever you want instead of ```9500```
+    * Start ElasticSearch
+       * If you plan on running the tests, you probably want to do this.
+       * Heck, if you plan on using ElasticSearch, you probably want to do this.
 1. Update your environment with the following parameters (look in [app.config](https://github.com/dieswaytoofast/erlasticsearch/blob/master/app.config) for examples)
    * ```thrift.options```
    * ```thrift.host```
@@ -20,6 +23,25 @@ Add this as a rebar dependency to your project.
 1. Start a client process
 	* ```erlasticsearch:start_client(<<"some_unique_name_here">>).```
 1. Profit
+
+
+
+WARNING
+============
+__**THE TESTS WILL CREATE AND DELETE INDICES IN WHATEVER ELASTICSEARCH INSTANCE YOU POINT THE CLIENT AT**__
+
+__**THE TESTS WILL CREATE AND DELETE INDICES IN WHATEVER ELASTICSEARCH INSTANCE YOU POINT THE CLIENT AT**__
+
+__**THE TESTS WILL CREATE AND DELETE INDICES IN WHATEVER ELASTICSEARCH INSTANCE YOU POINT THE CLIENT AT**__
+
+__**!!!!!!!SERIOUSLY!!!!!!**__
+
+
+__**YOU HAVE BEEN WARNED**__
+
+
+
+
 
 
 Details
@@ -39,7 +61,7 @@ Details
    * See the format of ```error()``` [here](https://github.com/dieswaytoofast/erlasticsearch/blob/master/src/erlasticsearch.hrl)
    * The payload _from_ ElasticSearch - when it exists - will almost always be JSON
       * e.g. --> ```<<"{\"ok\":true,\"acknowledged\":true}">>```
-1. Boolean methods (e.g. ```is_index/1```) return a ```boolean()``` (d-uh)
+1. Boolean methods (e.g. ```is_index/2, is_type/3, is_doc/4```) return a ```boolean()``` (d-uh)
 
 
 Client Process Management
@@ -145,14 +167,16 @@ These methods are available to perform CRUD activities on actual documents
 
 Function | Parameters | Description
 ----- | ----------- | --------
-insert_doc/5 | IndexName, Type, Id, Doc  | Creates the Doc under _IndexName_, with type _Type_, and id _Id_
-insert_doc/6 | IndexName, Type, Id, Doc, Params  | Creates the Doc under _IndexName_, with type _Type_, and id _Id_, and passes the tuple-list _Params_ to ElasticSearch
-get_doc/4 | IndexName, Type, Id  | Gets the Doc under _IndexName_, with type _Type_, and id _Id_
-get_doc/5 | IndexName, Type, Id, Params  | Gets the Doc under _IndexName_, with type _Type_, and id _Id_, and passes the tuple-list _Params_ to ElasticSearch
-delete_doc/4 | IndexName, Type, Id  | Deleset the Doc under _IndexName_, with type _Type_, and id _Id_
-delete_doc/5 | IndexName, Type, Id, Params  | Deletes the Doc under _IndexName_, with type _Type_, and id _Id_, and passes the tuple-list _Params_ to ElasticSearch
-
-_Note_: For both ```insert_doc/4``` and ```insert_doc/5```, sending in ```undefined``` as the ```Id``` will result in ElasticSearch generating an Id for the document.  This Id will be returned as part of the result...
+insert_doc/5 | ServerRef, IndexName, Type, Id, Doc  | Creates the Doc under _IndexName_, with type _Type_, and id _Id_
+insert_doc/6 | ServerRef, IndexName, Type, Id, Doc, Params  | Creates the Doc under _IndexName_, with type _Type_, and id _Id_, and passes the tuple-list _Params_ to ElasticSearch
+is_doc/4 | ServerRef, IndexName, Type, Id  | Checks if the Doc under _IndexName_, with type _Type_, and id _Id_ exists
+get_doc/4 | ServerRef, IndexName, Type, Id  | Gets the Doc under _IndexName_, with type _Type_, and id _Id_
+get_doc/5 | ServerRef, IndexName, Type, Id, Params  | Gets the Doc under _IndexName_, with type _Type_, and id _Id_, and passes the tuple-list _Params_ to ElasticSearch
+mget_doc/2 | ServerRef, Doc  | Gets documents from the ElasticSearch cluster based on the Index(s), Type(s), and Id(s) in _Doc_
+mget_doc/3 | ServerRef, IndexName, Doc  | Gets documents from the ElasticSearch cluster index _IndexName_ based on the Type(s), and Id(s) in _Doc_
+mget_doc/4 | ServerRef, IndexName, TypeName, Doc  | Gets documents from the ElasticSearch cluster index _IndexName_, with type _TypeName_, based on the Id(s) in _Doc_
+delete_doc/4 | ServerRef, IndexName, Type, Id  | Deleset the Doc under _IndexName_, with type _Type_, and id _Id_
+delete_doc/5 | ServerRef, IndexName, Type, Id, Params  | Deletes the Doc under _IndexName_, with type _Type_, and id _Id_, and passes the tuple-list _Params_ to ElasticSearch
 count/2 | ServerRef, Doc | Counts the docs in the cluster based on the search in _Doc_. (note that if _Doc_ is empty, you get a count of all the docs in the cluster)
 count/3 | ServerRef, Doc, Params | Counts the docs in the cluster based on the search in _Doc_, using _Params_.  Note that either _Doc_ or _Params_ can be empty, but clearly not both :-)
 count/4 | ServerRef, IndexName, Doc, Params | Counts the docs in the cluster based on the search in _Doc_, associated with the index _IndexName_, using _Params_  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```. This list can also be empty - ```[]```)
@@ -161,6 +185,14 @@ delete_by_query/2 | ServerRef, Doc | Deletes the docs in the cluster based on th
 delete_by_query/3 | ServerRef, Doc, Params | Deletes the docs in the cluster based on the search in _Doc_, using _Params_.  Note that either _Doc_ or _Params_ can be empty, but clearly not both :-)
 delete_by_query/4 | ServerRef, IndexName, Doc, Params | Deletes the docs in the cluster based on the search in _Doc_, associated with the index _IndexName_, using _Params_  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```. This list can also be empty - ```[]```)
 delete_by_query/5 | ServerRef, IndexName, TypeName, Doc, Params | Deletes the docs in the cluster based on the search in _Doc_, associated with the index _IndexName_, and type _TypeName_ using _Params_  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```, as well as a list of types (e.g. ) ```[<<"type1">>, <<"type2">>]```. Each of these lists can also be empty - ```[]```)
+
+
+
+
+_Note_: 
+
+1. For both ```insert_doc/4``` and ```insert_doc/5```, sending in ```undefined``` as the ```Id``` will result in ElasticSearch generating an Id for the document.  This Id will be returned as part of the result...
+2. Yes, the order of the arguments to mget_doc/[2,3,4] is weird.  Its just that ElasticSearch is slightly strange in this one...
 
 **EXAMPLES**
 
@@ -176,6 +208,10 @@ erlasticsearch@pecorino)7> erlasticsearch:insert_doc(<<"bar">>, <<"index2">>, <<
 erlasticsearch@pecorino)8> erlasticsearch:insert_doc(<<"bar">>, <<"index3">>, <<"type3">>, undefined, <<"{\"some_key\":\"some_val\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index3\",\"_type\":\"type3\",\"_id\":\"8Ji9R-TtT4KXxUOvb14K8g\",\"_version\":1}">>}}
+```
+```erlang
+erlasticsearch@pecorino)9> erlasticsearch:is_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"id1">>).
+true
 ```
 ```erlang
 erlasticsearch@pecorino)9> erlasticsearch:get_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"id1">>).
@@ -256,6 +292,30 @@ erlasticsearch@pecorino)31> erlasticsearch:count(<<"bar">>, <<"{\"term\":{\"key_
 {ok,{restResponse,200,undefined,
                   <<"{\"count\":0,\"_shards\":{\"total\":245,\"successful\":245,\"failed\":0}}">>}}
 ```
+```erlang
+erlasticsearch@pecorino)32> erlasticsearch:insert_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"id1">>, <<"{\"key_1\":\"value_1\"}">>).
+{ok,{restResponse,201,undefined,
+                  <<"{\"ok\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1}">>}}
+erlasticsearch@pecorino)33>  erlasticsearch:insert_doc(<<"bar">>, <<"index2">>, <<"type2">>, <<"id2">>, <<"{\"key_2\":\"value_2\"}">>).
+{ok,{restResponse,201,undefined,
+                  <<"{\"ok\":true,\"_index\":\"index2\",\"_type\":\"type2\",\"_id\":\"id2\",\"_version\":1}">>}}
+erlasticsearch@pecorino)34> FullDoc = jsx:encode([{docs, [[{<<"_index">>, <<"index1">>},{<<"_type">>, <<"type1">>},{<<"_id">>, <<"id1">>}], [{<<"_index">>, <<"index2">>},{<<"_type">>, <<"type2">>},{<<"_id">>, <<"id2">>}]]}]).
+<<"{\"docs\":[{\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\"},{\"_index\":\"index2\",\"_type\":\"type2\",\"_id\":\"id2\"}]}">>
+erlasticsearch@pecorino)35> erlasticsearch:mget_doc(<<"bar">>, FullDoc).                                                         {ok,{restResponse,200,undefined,                                                                
+                  <<"{\"docs\":[{\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1,\"exists\":true, \"_source"...>>}}
+erlasticsearch@pecorino)36> TypeDoc = jsx:encode([{docs, [[{<<"_type">>, <<"type1">>},{<<"_id">>, <<"id1">>}], [{<<"_type">>, <<"type2">>},{<<"_id">>, <<"id2">>}]]}]).
+<<"{\"docs\":[{\"_type\":\"type1\",\"_id\":\"id1\"},{\"_type\":\"type2\",\"_id\":\"id2\"}]}">>
+erlasticsearch@pecorino)37> erlasticsearch:mget_doc(<<"bar">>, <<"index1">>, TypeDoc).
+{ok,{restResponse,200,undefined,   
+                  <<"{\"docs\":[{\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1,\"exists\":true, \"_source"...>>}}
+erlasticsearch@pecorino)38> IdDoc = jsx:encode([{docs, [[{<<"_id">>, <<"id1">>}], [{<<"_id">>, <<"id2">>}]]}]).
+<<"{\"docs\":[{\"_id\":\"id1\"},{\"_id\":\"id2\"}]}">>
+erlasticsearch@pecorino)39> erlasticsearch:mget_doc(<<"bar">>, <<"index1">>, <<"type1">>, IdDoc).
+{ok,{restResponse,200,undefined,
+                  <<"{\"docs\":[{\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1,\"exists\":true, \"_source"...>>}}           
+```
+
+
 
 Search
 -----

@@ -28,6 +28,7 @@
 % Tests
 -export([is_index/2]).
 -export([is_type/3]).
+-export([is_doc/4]).
 
 % Cluster helpers
 -export([health/1]).
@@ -44,6 +45,7 @@
 % Doc CRUD
 -export([insert_doc/5, insert_doc/6]).
 -export([get_doc/4, get_doc/5]).
+-export([mget_doc/2, mget_doc/3, mget_doc/4]).
 -export([delete_doc/4, delete_doc/5]).
 -export([search/4, search/5]).
 -export([count/2, count/3, count/4, count/5]).
@@ -197,15 +199,15 @@ is_index(ServerRef, Indexes) when is_list(Indexes) ->
     gen_server:call(get_target(ServerRef), {is_index, Indexes}).
 
 
-%% @equiv count(ServerRef, [], [], Doc []).
+%% @equiv count(ServerRef, ?ALL, [], Doc []).
 -spec count(server_ref(), doc()) -> response().
 count(ServerRef, Doc) when is_binary(Doc) ->
-    count(ServerRef, [], [], Doc, []).
+    count(ServerRef, ?ALL, [], Doc, []).
 
-%% @equiv count(ServerRef, [], [], Doc, Params).
+%% @equiv count(ServerRef, ?ALL, [], Doc, Params).
 -spec count(server_ref(), doc(), params()) -> response().
 count(ServerRef, Doc, Params) when is_binary(Doc), is_list(Params) ->
-    count(ServerRef, [], [], Doc, Params).
+    count(ServerRef, ?ALL, [], Doc, Params).
 
 %% @equiv count(ServerRef, Index, [], Doc, Params).
 -spec count(server_ref(), [index() | [index()]], doc(), params()) -> response().
@@ -225,12 +227,12 @@ count(ServerRef, Index, Types, Doc, Params) when is_binary(Index), is_list(Types
 count(ServerRef, Indexes, Types, Doc, Params) when is_list(Indexes), is_list(Types), is_binary(Doc), is_list(Params) -> 
     gen_server:call(get_target(ServerRef), {count, Indexes, Types, Doc, Params}).
 
-%% @equiv delete_by_query(ServerRef, [], [], Doc []).
+%% @equiv delete_by_query(ServerRef, ?ALL, [], Doc []).
 -spec delete_by_query(server_ref(), doc()) -> response().
 delete_by_query(ServerRef, Doc) when is_binary(Doc) ->
     delete_by_query(ServerRef, ?ALL, [], Doc, []).
 
-%% @equiv delete_by_query(ServerRef, [], [], Doc, Params).
+%% @equiv delete_by_query(ServerRef, ?ALL, [], Doc, Params).
 -spec delete_by_query(server_ref(), doc(), params()) -> response().
 delete_by_query(ServerRef, Doc, Params) when is_binary(Doc), is_list(Params) ->
     delete_by_query(ServerRef, ?ALL, [], Doc, Params).
@@ -274,6 +276,11 @@ insert_doc(ServerRef, Index, Type, Id, Doc) ->
 insert_doc(ServerRef, Index, Type, Id, Doc, Params) ->
     gen_server:call(get_target(ServerRef), {insert_doc, Index, Type, Id, Doc, Params}).
 
+%% @doc Checks to see if the doc exists
+-spec is_doc(server_ref(), index(), type(), id()) -> response().
+is_doc(ServerRef, Index, Type, Id) ->
+    gen_server:call(get_target(ServerRef), {is_doc, Index, Type, Id}).
+
 %% @equiv get_doc(ServerRef, Index, Type, Id, []).
 -spec get_doc(server_ref(), index(), type(), id()) -> response().
 get_doc(ServerRef, Index, Type, Id) ->
@@ -283,6 +290,23 @@ get_doc(ServerRef, Index, Type, Id) ->
 -spec get_doc(server_ref(), index(), type(), id(), params()) -> response().
 get_doc(ServerRef, Index, Type, Id, Params) ->
     gen_server:call(get_target(ServerRef), {get_doc, Index, Type, Id, Params}).
+
+%% @equiv mget_doc(ServerRef, <<>>, <<>>, Doc)
+-spec mget_doc(server_ref(), doc()) -> response().
+mget_doc(ServerRef, Doc) ->
+    mget_doc(ServerRef, <<>>, <<>>, Doc).
+
+%% @equiv mget_doc(ServerRef, Index, <<>>, Doc)
+-spec mget_doc(server_ref(), index(), doc()) -> response().
+mget_doc(ServerRef, Index, Doc) ->
+    mget_doc(ServerRef, Index, <<>>, Doc).
+
+%% @doc Get a doc from the ElasticSearch cluster
+-spec mget_doc(server_ref(), index(), type(), doc()) -> response().
+mget_doc(ServerRef, Index, Type, Doc) ->
+    gen_server:call(get_target(ServerRef), {mget_doc, Index, Type, Doc}).
+
+
 
 %% @equiv delete_doc(ServerRef, Index, Type, Id, []).
 -spec delete_doc(server_ref(), index(), type(), id()) -> response().
@@ -302,11 +326,11 @@ search(ServerRef, Index, Type, Doc) ->
 search(ServerRef, Index, Type, Doc, Params) ->
     gen_server:call(get_target(ServerRef), {search, Index, Type, Doc, Params}).
 
-%% @equiv refresh(ServerRef, []).
+%% @equiv refresh(ServerRef, ?ALL).
 %% @doc Refresh all indices
 %-spec refresh(server_ref()) -> response().
 refresh(ServerRef) ->
-    refresh(ServerRef, []).
+    refresh(ServerRef, ?ALL).
 
 %% @doc Refresh one or more indices
 %-spec refresh(server_ref(), [index() | [index()]]) -> response().
@@ -316,10 +340,10 @@ refresh(ServerRef, Indexes) when is_list(Indexes) ->
     gen_server:call(get_target(ServerRef), {refresh, Indexes}).
 
 %% @doc Flush all indices
-%% @equiv flush(ServerRef, []).
+%% @equiv flush(ServerRef, ?ALL).
 -spec flush(server_ref()) -> response().
 flush(ServerRef) ->
-    flush(ServerRef, []).
+    flush(ServerRef, ?ALL).
 
 %% @doc Flush one or more indices
 -spec flush(server_ref(), [index() | [index()]]) -> response().
@@ -328,11 +352,11 @@ flush(ServerRef, Index) when is_binary(Index) ->
 flush(ServerRef, Indexes) when is_list(Indexes) ->
     gen_server:call(get_target(ServerRef), {flush, Indexes}).
 
-%% @equiv optimize(ServerRef, []).
+%% @equiv optimize(ServerRef, ?ALL).
 %% @doc Optimize all indices
 -spec optimize(server_ref()) -> response().
 optimize(ServerRef) ->
-    optimize(ServerRef, []).
+    optimize(ServerRef, ?ALL).
 
 %% @doc Optimize one or more indices
 -spec optimize(server_ref(), [index() | [index()]]) -> response().
@@ -341,11 +365,11 @@ optimize(ServerRef, Index) when is_binary(Index) ->
 optimize(ServerRef, Indexes) when is_list(Indexes) ->
     gen_server:call(get_target(ServerRef), {optimize, Indexes}).
 
-%% @equiv segments(ServerRef, []).
+%% @equiv segments(ServerRef, ?ALL).
 %% @doc Optimize all indices
 -spec segments(server_ref()) -> response().
 segments(ServerRef) ->
-    segments(ServerRef, []).
+    segments(ServerRef, ?ALL).
 
 %% @doc Optimize one or more indices
 -spec segments(server_ref(), [index() | [index()]]) -> response().
@@ -354,11 +378,11 @@ segments(ServerRef, Index) when is_binary(Index) ->
 segments(ServerRef, Indexes) when is_list(Indexes) ->
     gen_server:call(get_target(ServerRef), {segments, Indexes}).
 
-%% @equiv clear_cache(ServerRef, [], []).
+%% @equiv clear_cache(ServerRef, ?ALL, []).
 %% @doc Clear all the caches
 -spec clear_cache(server_ref()) -> response().
 clear_cache(ServerRef) ->
-    clear_cache(ServerRef, [], []).
+    clear_cache(ServerRef, ?ALL, []).
 
 %% @equiv clear_cache(ServerRef, Indexes, []).
 -spec clear_cache(server_ref(), [index() | [index()]]) -> response().
@@ -455,6 +479,7 @@ handle_call({_Request = is_type, Index, Type}, _From, State = #state{connection 
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     % Check if the result is 200 (true) or 404 (false)
     Result = is_200(RestResponse),
+
     {reply, Result, State#state{connection = Connection1}};
 
 handle_call({_Request = insert_doc, Index, Type, Id, Doc, Params}, _From, State = #state{connection = Connection0}) ->
@@ -466,6 +491,17 @@ handle_call({_Request = get_doc, Index, Type, Id, Params}, _From, State = #state
     RestRequest = rest_request_get_doc(Index, Type, Id, Params),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({_Request = mget_doc, Index, Type, Doc}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_mget_doc(Index, Type, Doc),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({_Request = is_doc, Index, Type, Id}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_is_doc(Index, Type, Id),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    Result = is_200(RestResponse),
+    {reply, Result, State#state{connection = Connection1}};
 
 handle_call({_Request = delete_doc, Index, Type, Id, Params}, _From, State = #state{connection = Connection0}) ->
     RestRequest = rest_request_delete_doc(Index, Type, Id, Params),
@@ -642,6 +678,13 @@ rest_request_insert_doc(Index, Type, Id, Doc, Params) when is_binary(Index),
                  uri = Uri,
                  body = Doc}.
 
+rest_request_is_doc(Index, Type, Id) when is_binary(Index),
+                                                   is_binary(Type),
+                                                   is_binary(Id) ->
+    Uri = make_uri([Index, Type, Id], []),
+    #restRequest{method = ?elasticsearch_Method_HEAD,
+                 uri = Uri}.
+
 rest_request_get_doc(Index, Type, Id, Params) when is_binary(Index),
                                                    is_binary(Type),
                                                    is_binary(Id),
@@ -649,6 +692,14 @@ rest_request_get_doc(Index, Type, Id, Params) when is_binary(Index),
     Uri = make_uri([Index, Type, Id], Params),
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri}.
+
+rest_request_mget_doc(Index, Type, Doc) when is_binary(Index),
+                                                   is_binary(Type),
+                                                   is_binary(Doc) ->
+    Uri = make_uri([Index, Type, ?MGET], []),
+    #restRequest{method = ?elasticsearch_Method_GET,
+                 uri = Uri,
+                 body = Doc}.
 
 rest_request_delete_doc(Index, Type, Id, Params) when is_binary(Index),
                                                    is_binary(Type),

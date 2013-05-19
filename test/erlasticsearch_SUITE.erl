@@ -98,14 +98,22 @@ groups() ->
         t_clear_cache_all
 
        ]},
+    % These three _MUST_ be in this sequence, and by themselves
     {crud_doc, [],
-      [t_insert_doc, 
+      [ t_insert_doc, 
        t_get_doc, 
        t_delete_doc
       ]},
+    {doc_helpers, [],
+       [t_is_doc,
+        t_mget_index,
+        t_mget_type,
+        t_mget_id
+      ]},
      {test, [],
-      [
-       t_health
+      [t_mget_index,
+       t_mget_type,
+       t_mget_id
       ]},
      {cluster_helpers, [],
       [t_health,
@@ -129,7 +137,8 @@ all() ->
         {group, crud_doc}, 
         {group, search},
         {group, index_helpers},
-        {group, cluster_helpers}
+        {group, cluster_helpers},
+        {group, doc_helpers}
     ].
 
 t_health(Config) ->
@@ -216,8 +225,8 @@ t_is_type_all(Config) ->
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     build_data(ClientName, Index, Type),
-    are_types_all(ClientName, Index, Type),
-    clear_data(ClientName, Index).
+    are_types_all(ClientName, Index, Type).
+%    clear_data(ClientName, Index).
 
 check_status_1(ClientName, Index) ->
     lists:foreach(fun(X) ->
@@ -298,16 +307,17 @@ build_data(ClientName, Index, Type) ->
                             FullType = enumerated(Type, Y),
                             BX = list_to_binary(integer_to_list(X)),
                             erlasticsearch:insert_doc(ClientName, FullIndex, 
-                                                      FullType, BX, json_document(X))
+                                                      FullType, BX, json_document(X)),
+                            erlasticsearch:flush(ClientName)
                     end, lists:seq(1, ?DOCUMENT_DEPTH))
-        end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    erlasticsearch:refresh(ClientName).
+        end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
 clear_data(ClientName, Index) ->
     lists:foreach(fun(X) ->
                 FullIndex = enumerated(Index, X),
                 erlasticsearch:delete_index(ClientName, FullIndex)
-        end, lists:seq(1, ?DOCUMENT_DEPTH)).
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    erlasticsearch:flush(ClientName).
 
 % Also deletes indices
 t_create_index(Config) ->
@@ -465,15 +475,43 @@ t_open_index(Config) ->
         t_delete_doc(Config).
         
 
+t_mget_id(Config) ->
+    t_insert_doc(Config),
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    Query = id_query(),
+    Result = erlasticsearch:mget_doc(ClientName, Index, Type, Query),
+    ?DOCUMENT_DEPTH  = docs_from_result(Result),
+    t_delete_doc(Config).
+
+t_mget_type(Config) ->
+    t_insert_doc(Config),
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    Query = id_query(Type),
+    Result = erlasticsearch:mget_doc(ClientName, Index, Query),
+    ?DOCUMENT_DEPTH  = docs_from_result(Result),
+    t_delete_doc(Config).
+
+t_mget_index(Config) ->
+    t_insert_doc(Config),
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    Query = id_query(Index, Type),
+    Result = erlasticsearch:mget_doc(ClientName, Query),
+    ?DOCUMENT_DEPTH  = docs_from_result(Result),
+    t_delete_doc(Config).
+
 t_search(Config) ->
     t_insert_doc(Config),
     ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     lists:foreach(fun(X) ->
-                Query = in_query(X),
-                % Refresh the index otherwise it might not 'take'
-                erlasticsearch:refresh(ClientName, Index),
+                Query = param_query(X),
                 Result = erlasticsearch:search(ClientName, Index, Type, <<>>, [{q, Query}]),
                 % The document is structured so that the number of top level
                 % keys is as (?DOCUMENT_DEPTH + 1 - X)
@@ -487,10 +525,8 @@ t_count(Config) ->
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     lists:foreach(fun(X) ->
-                Query1 = in_query(X),
+                Query1 = param_query(X),
                 Query2 = json_query(X),
-                % Refresh the index otherwise it might not 'take'
-                erlasticsearch:refresh(ClientName, Index),
 
                 % query as parameter
                 Result1 = erlasticsearch:count(ClientName, Index, Type, <<>>, [{q, Query1}]),
@@ -513,24 +549,20 @@ t_delete_by_query_param(Config) ->
     ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
-    Query1 = in_query(1),
-    % Refresh the index otherwise it might not 'take'
-    erlasticsearch:refresh(ClientName, Index),
+    Query1 = param_query(1),
     Result1 = erlasticsearch:count(ClientName, Index, Type, <<>>, [{q, Query1}]),
     5 = count_from_result(Result1),
     DResult1 = erlasticsearch:delete_by_query(ClientName, Index, Type, <<>>, [{q, Query1}]),
     true = erlasticsearch:is_200(DResult1),
-    erlasticsearch:refresh(ClientName, Index),
+    erlasticsearch:flush(ClientName, Index),
     DResult1a = erlasticsearch:count(ClientName, Index, Type, <<>>, [{q, Query1}]),
     0  = count_from_result(DResult1a),
 
     % All Indices
     t_insert_doc(Config),
-    % Refresh the index otherwise it might not 'take'
-    erlasticsearch:refresh(ClientName, Index),
     ADResult1 = erlasticsearch:delete_by_query(ClientName, <<>>, [{q, Query1}]),
     true = erlasticsearch:is_200(ADResult1),
-    erlasticsearch:refresh(ClientName, Index),
+    erlasticsearch:flush(ClientName, Index),
     ADResult1a = erlasticsearch:count(ClientName, <<>>, [{q, Query1}]),
     0  = count_from_result(ADResult1a).
     % Don't need to delete docs, 'cos they are already deleted
@@ -541,32 +573,50 @@ t_delete_by_query_doc(Config) ->
     ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
-    Query1 = in_query(1),
+    Query1 = param_query(1),
     Query2 = json_query(1),
-    % Refresh the index otherwise it might not 'take'
-    erlasticsearch:refresh(ClientName, Index),
     Result1 = erlasticsearch:count(ClientName, Index, Type, <<>>, [{q, Query1}]),
     5 = count_from_result(Result1),
     DResult1 = erlasticsearch:delete_by_query(ClientName, Index, Type, Query2, []),
     true = erlasticsearch:is_200(DResult1),
-    erlasticsearch:refresh(ClientName, Index),
+    erlasticsearch:flush(ClientName, Index),
     DResult1a = erlasticsearch:count(ClientName, Index, Type, <<>>, [{q, Query1}]),
     0  = count_from_result(DResult1a),
 
     % All Indices
     t_insert_doc(Config),
-    % Refresh the index otherwise it might not 'take'
-    erlasticsearch:refresh(ClientName, Index),
     ADResult1 = erlasticsearch:delete_by_query(ClientName, Query2),
     true = erlasticsearch:is_200(ADResult1),
-    erlasticsearch:refresh(ClientName, Index),
+    erlasticsearch:flush(ClientName, Index),
     ADResult1a = erlasticsearch:count(ClientName, <<>>, [{q, Query1}]),
     0  = count_from_result(ADResult1a).
     % Don't need to delete docs, 'cos they are already deleted
 %    t_delete_doc(Config).
 
 
-in_query(X) ->
+id_query() ->
+    Ids = lists:map(fun(X) -> 
+                    BX = list_to_binary(integer_to_list(X)),
+                    [{<<"_id">>, BX}] 
+            end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    jsx:encode([{docs, Ids}]).
+
+id_query(Type) ->
+    Ids = lists:map(fun(X) -> 
+                    BX = list_to_binary(integer_to_list(X)),
+                    [{<<"_type">>, Type}, {<<"_id">>, BX}] 
+            end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    jsx:encode([{docs, Ids}]).
+
+id_query(Index, Type) ->
+    Ids = lists:map(fun(X) -> 
+                    BX = list_to_binary(integer_to_list(X)),
+                    [{<<"_index">>, Index}, {<<"_type">>, Type}, {<<"_id">>, BX}] 
+            end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    jsx:encode([{docs, Ids}]).
+
+
+param_query(X) ->
     Key = key(X),
     Value = value(X),
     bstr:join([Key, Value], <<":">>).
@@ -586,6 +636,14 @@ hits_from_result({ok, {_, _, _, JSON}}) ->
             end
     end.
 
+docs_from_result({ok, {_, _, _, JSON}}) ->
+    case lists:keyfind(<<"docs">>, 1, jsx:decode(JSON)) of
+        false -> throw(false);
+        {_, Result} ->
+            length(Result)
+    end.
+
+
 count_from_result({ok, {_, _, _, JSON}}) ->
     case lists:keyfind(<<"count">>, 1, jsx:decode(JSON)) of
         false -> throw(false);
@@ -601,7 +659,19 @@ t_insert_doc(Config) ->
                 Response = erlasticsearch:insert_doc(ClientName, Index, 
                                                      Type, BX, json_document(X)),
                 true = erlasticsearch:is_200_or_201(Response)
-        end, lists:seq(1, ?DOCUMENT_DEPTH)).
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    erlasticsearch:flush(ClientName, Index).
+
+t_is_doc(Config) ->
+    t_insert_doc(Config),
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    lists:foreach(fun(X) ->
+                BX = list_to_binary(integer_to_list(X)),
+                true = erlasticsearch:is_doc(ClientName, Index, Type, BX)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    t_delete_doc(Config).
 
 t_get_doc(Config) ->
     ClientName = ?config(client_name, Config),
@@ -621,7 +691,8 @@ t_delete_doc(Config) ->
                 BX = list_to_binary(integer_to_list(X)),
                 Response = erlasticsearch:delete_doc(ClientName, Index, Type, BX),
                 true = erlasticsearch:is_200(Response)
-        end, lists:seq(1, ?DOCUMENT_DEPTH)).
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    erlasticsearch:flush(ClientName, Index).
 
 %% Test helpers
 % Create a bunch-a indices
@@ -629,8 +700,8 @@ create_indices(ClientName, Index) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = bstr:join([Index, BX], <<"_">>),
-                Response = erlasticsearch:create_index(ClientName, FullIndex),
-                true = erlasticsearch:is_200(Response)
+                erlasticsearch:create_index(ClientName, FullIndex),
+                erlasticsearch:flush(ClientName, Index)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
 are_indices_1(ClientName, Index) ->
@@ -653,7 +724,8 @@ delete_all_indices(Config) ->
     Index = ?config(index, Config),
     IndexWithShards = bstr:join([Index, <<"with_shards">>], <<"_">>),
     delete_all_indices(ClientName, Index, true),
-    delete_all_indices(ClientName, IndexWithShards, true).
+    delete_all_indices(ClientName, IndexWithShards, true),
+    erlasticsearch:flush(ClientName).
 
 % By default, blindly delete
 delete_all_indices(ClientName, Index) ->
