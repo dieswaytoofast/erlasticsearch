@@ -488,6 +488,6 @@ erlasticsearch@pecorino)13> erlasticsearch:nodes_stats(<<"bar">>, [<<"node1">>],
 
 Credits
 =======
-This is _not_ to be confused with [erlastic_search](https://github.com/tsloughter/erlastic_search) by [Tristan Sloughter](https://github.com/tsloughter), which is HTTP/REST based, and quite probably more feature rich, but almost certainly did not involve quite this level of head-thumping associated w/ figuring out how Thrift works…
+This is _not_ to be confused with [erlastic_search](https://github.com/tsloughter/erlastic_search) by [Tristan Sloughter](https://github.com/tsloughter), which is HTTP/REST based, and almost certainly did not involve quite this level of head-thumping associated w/ figuring out how Thrift works…
 
 (Yes, this is a _Credit_)
