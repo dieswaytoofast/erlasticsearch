@@ -153,7 +153,14 @@ delete_doc/4 | IndexName, Type, Id  | Deleset the Doc under _IndexName_, with ty
 delete_doc/5 | IndexName, Type, Id, Params  | Deletes the Doc under _IndexName_, with type _Type_, and id _Id_, and passes the tuple-list _Params_ to ElasticSearch
 
 _Note_: For both ```insert_doc/4``` and ```insert_doc/5```, sending in ```undefined``` as the ```Id``` will result in ElasticSearch generating an Id for the document.  This Id will be returned as part of the result...
-
+count/2 | ServerRef, Doc | Counts the docs in the cluster based on the search in _Doc_. (note that if _Doc_ is empty, you get a count of all the docs in the cluster)
+count/3 | ServerRef, Doc, Params | Counts the docs in the cluster based on the search in _Doc_, using _Params_.  Note that either _Doc_ or _Params_ can be empty, but clearly not both :-)
+count/4 | ServerRef, IndexName, Doc, Params | Counts the docs in the cluster based on the search in _Doc_, associated with the index _IndexName_, using _Params_  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```. This list can also be empty - ```[]```)
+count/5 | ServerRef, IndexName, TypeName, Doc, Params | Counts the docs in the cluster based on the search in _Doc_, associated with the index _IndexName_, and type _TypeName_ using _Params_  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```, as well as a list of types (e.g. ) ```[<<"type1">>, <<"type2">>]```. Each of these lists can also be empty - ```[]```)
+delete_by_query/2 | ServerRef, Doc | Deletes the docs in the cluster based on the search in _Doc_. (note that if _Doc_ is empty, you get a count of all the docs in the cluster)
+delete_by_query/3 | ServerRef, Doc, Params | Deletes the docs in the cluster based on the search in _Doc_, using _Params_.  Note that either _Doc_ or _Params_ can be empty, but clearly not both :-)
+delete_by_query/4 | ServerRef, IndexName, Doc, Params | Deletes the docs in the cluster based on the search in _Doc_, associated with the index _IndexName_, using _Params_  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```. This list can also be empty - ```[]```)
+delete_by_query/5 | ServerRef, IndexName, TypeName, Doc, Params | Deletes the docs in the cluster based on the search in _Doc_, associated with the index _IndexName_, and type _TypeName_ using _Params_  (Note that a list of Indices can also be sent in (e.g., ```[<<"foo">>, <<"bar">>]```, as well as a list of types (e.g. ) ```[<<"type1">>, <<"type2">>]```. Each of these lists can also be empty - ```[]```)
 
 **EXAMPLES**
 
@@ -185,6 +192,69 @@ erlasticsearch@pecorino)11> erlasticsearch:get_doc(<<"bar">>, <<"index1">>, <<"t
 erlasticsearch@pecorino)12> erlasticsearch:delete_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"id1">>).                   
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"found\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":2}">>}}
+```
+```erlang
+erlasticsearch@pecorino)13> erlasticsearch:insert_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+{ok,{restResponse,201,undefined,
+                  <<"{\"ok\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}">>}}
+erlasticsearch@pecorino)14> erlasticsearch:insert_doc(<<"bar">>, <<"index2">>, <<"type2">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+{ok,{restResponse,201,undefined,
+                  <<"{\"ok\":true,\"_index\":\"index2\",\"_type\":\"type2\",\"_id\":\"1\",\"_version\":1}">>}}
+erlasticsearch@pecorino)15> erlasticsearch:count(<<"bar">>, <<>>).
+{ok,{restResponse,200,undefined,
+                  <<"{\"count\":4,\"_shards\":{\"total\":105,\"successful\":105,\"failed\":0}}">>}}
+erlasticsearch@pecorino)16> erlasticsearch:count(<<"bar">>, <<>>, [{q, <<"key_1:value_1">>}]).
+{ok,{restResponse,200,undefined,           
+                  <<"{\"count\":2,\"_shards\":{\"total\":105,\"successful\":105,\"failed\":0}}">>}}
+erlasticsearch@pecorino)17> erlasticsearch:count(<<"bar">>, <<"{\"term\":{\"key_1\":\"value_1\"}}">>, []).
+{ok,{restResponse,200,undefined,
+                  <<"{\"count\":2,\"_shards\":{\"total\":105,\"successful\":105,\"failed\":0}}">>}}
+erlasticsearch@pecorino)18> erlasticsearch:count(<<"bar">>, [<<"index1">>],<<>>, [{q, <<"key_1:value_1">>}]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"count\":1,\"_shards\":{\"total\":5,\"successful\":5,\"failed\":0}}">>}}
+erlasticsearch@pecorino)19> erlasticsearch:count(<<"bar">>, [<<"index1">>,<<"index2">>],[<<"type1">>, <<"type2">>],<<>>, [{q, <<"key_1:value_1">>}]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"count\":2,\"_shards\":{\"total\":10,\"successful\":10,\"failed\":0}}">>}}
+```              
+```erlang
+erlasticsearch@pecorino)20> erlasticsearch:insert_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+{ok,{restResponse,201,undefined,
+                  <<"{\"ok\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}">>}}
+erlasticsearch@pecorino)21> erlasticsearch:insert_doc(<<"bar">>, <<"index2">>, <<"type2">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+{ok,{restResponse,201,undefined,
+                  <<"{\"ok\":true,\"_index\":\"index2\",\"_type\":\"type2\",\"_id\":\"1\",\"_version\":1}">>}}
+erlasticsearch@pecorino)22> erlasticsearch:delete_by_query(<<"bar">>, <<"{\"term\":{\"key_1\":\"value_1\"}}">>).                  {ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_indices\":{\"index_137402104\":{\"_shards\":{\"total\":5,\"successful\":5,\"failed\":0}},\""...>>}}
+erlasticsearch@pecorino)23> erlasticsearch:count(<<"bar">>, <<"{\"term\":{\"key_1\":\"value_1\"}}">>).                            {ok,{restResponse,200,undefined,
+                  <<"{\"count\":0,\"_shards\":{\"total\":245,\"successful\":245,\"failed\":0}}">>}}
+```
+```erlang
+erlasticsearch@pecorino)24> erlasticsearch:insert_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+{ok,{restResponse,201,undefined,
+                  <<"{\"ok\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}">>}}
+erlasticsearch@pecorino)25> erlasticsearch:insert_doc(<<"bar">>, <<"index2">>, <<"type2">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+{ok,{restResponse,201,undefined,
+                  <<"{\"ok\":true,\"_index\":\"index2\",\"_type\":\"type2\",\"_id\":\"1\",\"_version\":1}">>}}
+erlasticsearch@pecorino)26> erlasticsearch:delete_by_query(<<"bar">>, <<>>, [{q, <<"key1:value1">>}]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_indices\":{\"index_137402104\":{\"_shards\":{\"total\":5,\"successful\":5,\"failed\":0}},\""...>>}}
+erlasticsearch@pecorino)27> erlasticsearch:count(<<"bar">>, <<"{\"term\":{\"key_1\":\"value_1\"}}">>).
+{ok,{restResponse,200,undefined,
+                  <<"{\"count\":0,\"_shards\":{\"total\":245,\"successful\":245,\"failed\":0}}">>}}
+```
+```erlang
+erlasticsearch@pecorino)28> erlasticsearch:insert_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+{ok,{restResponse,201,undefined,
+                  <<"{\"ok\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}">>}}
+erlasticsearch@pecorino)29> erlasticsearch:insert_doc(<<"bar">>, <<"index2">>, <<"type2">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+{ok,{restResponse,201,undefined,
+                  <<"{\"ok\":true,\"_index\":\"index2\",\"_type\":\"type2\",\"_id\":\"1\",\"_version\":1}">>}}
+erlasticsearch@pecorino)30> erlasticsearch:delete_by_query(<<"bar">>, [<<"index1">>, <<"index2">>], [<<"type1">>, <<"type2">>], <<>>, [{q, <<"key1:value1">>}]).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"_indices\":{\"index1\":{\"_shards\":{\"total\":5,\"successful\":5,\"failed\":0}},\"index2\":{"...>>}}
+erlasticsearch@pecorino)31> erlasticsearch:count(<<"bar">>, <<"{\"term\":{\"key_1\":\"value_1\"}}">>).
+{ok,{restResponse,200,undefined,
+                  <<"{\"count\":0,\"_shards\":{\"total\":245,\"successful\":245,\"failed\":0}}">>}}
 ```
 
 Search

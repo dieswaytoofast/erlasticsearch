@@ -115,7 +115,10 @@ groups() ->
       ]},
 
      {search, [],
-      [t_search
+      [t_search,
+       t_count,
+       t_delete_by_query_param,
+       t_delete_by_query_doc
       ]}
     ].
 
@@ -478,10 +481,100 @@ t_search(Config) ->
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
     t_delete_doc(Config).
 
+t_count(Config) ->
+    t_insert_doc(Config),
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    lists:foreach(fun(X) ->
+                Query1 = in_query(X),
+                Query2 = json_query(X),
+                % Refresh the index otherwise it might not 'take'
+                erlasticsearch:refresh(ClientName, Index),
+
+                % query as parameter
+                Result1 = erlasticsearch:count(ClientName, Index, Type, <<>>, [{q, Query1}]),
+                % The document is structured so that the number of top level
+                % keys is as (?DOCUMENT_DEPTH + 1 - X)
+                ?DOCUMENT_DEPTH  = count_from_result(Result1) + X - 1,
+
+                % query as doc
+                Result2 = erlasticsearch:count(ClientName, Index, Type, Query2, []),
+                % The document is structured so that the number of top level
+                % keys is as (?DOCUMENT_DEPTH + 1 - X)
+                ?DOCUMENT_DEPTH  = count_from_result(Result2) + X - 1
+
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    t_delete_doc(Config).
+
+t_delete_by_query_param(Config) ->
+    % One Index
+    t_insert_doc(Config),
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    Query1 = in_query(1),
+    % Refresh the index otherwise it might not 'take'
+    erlasticsearch:refresh(ClientName, Index),
+    Result1 = erlasticsearch:count(ClientName, Index, Type, <<>>, [{q, Query1}]),
+    5 = count_from_result(Result1),
+    DResult1 = erlasticsearch:delete_by_query(ClientName, Index, Type, <<>>, [{q, Query1}]),
+    true = erlasticsearch:is_200(DResult1),
+    erlasticsearch:refresh(ClientName, Index),
+    DResult1a = erlasticsearch:count(ClientName, Index, Type, <<>>, [{q, Query1}]),
+    0  = count_from_result(DResult1a),
+
+    % All Indices
+    t_insert_doc(Config),
+    % Refresh the index otherwise it might not 'take'
+    erlasticsearch:refresh(ClientName, Index),
+    ADResult1 = erlasticsearch:delete_by_query(ClientName, <<>>, [{q, Query1}]),
+    true = erlasticsearch:is_200(ADResult1),
+    erlasticsearch:refresh(ClientName, Index),
+    ADResult1a = erlasticsearch:count(ClientName, <<>>, [{q, Query1}]),
+    0  = count_from_result(ADResult1a).
+    % Don't need to delete docs, 'cos they are already deleted
+%    t_delete_doc(Config).
+
+t_delete_by_query_doc(Config) ->
+    t_insert_doc(Config),
+    ClientName = ?config(client_name, Config),
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    Query1 = in_query(1),
+    Query2 = json_query(1),
+    % Refresh the index otherwise it might not 'take'
+    erlasticsearch:refresh(ClientName, Index),
+    Result1 = erlasticsearch:count(ClientName, Index, Type, <<>>, [{q, Query1}]),
+    5 = count_from_result(Result1),
+    DResult1 = erlasticsearch:delete_by_query(ClientName, Index, Type, Query2, []),
+    true = erlasticsearch:is_200(DResult1),
+    erlasticsearch:refresh(ClientName, Index),
+    DResult1a = erlasticsearch:count(ClientName, Index, Type, <<>>, [{q, Query1}]),
+    0  = count_from_result(DResult1a),
+
+    % All Indices
+    t_insert_doc(Config),
+    % Refresh the index otherwise it might not 'take'
+    erlasticsearch:refresh(ClientName, Index),
+    ADResult1 = erlasticsearch:delete_by_query(ClientName, Query2),
+    true = erlasticsearch:is_200(ADResult1),
+    erlasticsearch:refresh(ClientName, Index),
+    ADResult1a = erlasticsearch:count(ClientName, <<>>, [{q, Query1}]),
+    0  = count_from_result(ADResult1a).
+    % Don't need to delete docs, 'cos they are already deleted
+%    t_delete_doc(Config).
+
+
 in_query(X) ->
     Key = key(X),
     Value = value(X),
     bstr:join([Key, Value], <<":">>).
+
+json_query(X) ->
+    Key = key(X),
+    Value = value(X),
+    jsx:encode([{term, [{Key, Value}]}]).
 
 hits_from_result({ok, {_, _, _, JSON}}) ->
     case lists:keyfind(<<"hits">>, 1, jsx:decode(JSON)) of
@@ -493,8 +586,11 @@ hits_from_result({ok, {_, _, _, JSON}}) ->
             end
     end.
 
-
-
+count_from_result({ok, {_, _, _, JSON}}) ->
+    case lists:keyfind(<<"count">>, 1, jsx:decode(JSON)) of
+        false -> throw(false);
+        {_, Data} -> Data
+    end.
 
 t_insert_doc(Config) ->
     ClientName = ?config(client_name, Config),

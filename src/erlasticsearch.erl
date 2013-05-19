@@ -46,6 +46,8 @@
 -export([get_doc/4, get_doc/5]).
 -export([delete_doc/4, delete_doc/5]).
 -export([search/4, search/5]).
+-export([count/2, count/3, count/4, count/5]).
+-export([delete_by_query/2, delete_by_query/3, delete_by_query/4, delete_by_query/5]).
 
 %% Index helpers
 -export([status/2]).
@@ -56,6 +58,7 @@
 -export([segments/1, segments/2]).
 
 -export([is_200/1, is_200_or_201/1]).
+-export([decode_response/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -192,6 +195,63 @@ is_index(ServerRef, Index) when is_binary(Index) ->
     is_index(ServerRef, [Index]);
 is_index(ServerRef, Indexes) when is_list(Indexes) ->
     gen_server:call(get_target(ServerRef), {is_index, Indexes}).
+
+
+%% @equiv count(ServerRef, [], [], Doc []).
+-spec count(server_ref(), doc()) -> response().
+count(ServerRef, Doc) when is_binary(Doc) ->
+    count(ServerRef, [], [], Doc, []).
+
+%% @equiv count(ServerRef, [], [], Doc, Params).
+-spec count(server_ref(), doc(), params()) -> response().
+count(ServerRef, Doc, Params) when is_binary(Doc), is_list(Params) ->
+    count(ServerRef, [], [], Doc, Params).
+
+%% @equiv count(ServerRef, Index, [], Doc, Params).
+-spec count(server_ref(), [index() | [index()]], doc(), params()) -> response().
+count(ServerRef, Index, Doc, Params) when is_binary(Index), is_binary(Doc), is_list(Params) ->
+    count(ServerRef, [Index], [], Doc, Params);
+count(ServerRef, Indexes, Doc, Params) when is_list(Indexes), is_binary(Doc), is_list(Params) ->
+    count(ServerRef, Indexes, [], Doc, Params).
+
+%% @doc Get the number of matches for a query
+-spec count(server_ref(), [index() | [index()]], [type() | [type()]], doc(), params()) -> boolean().
+count(ServerRef, Index, Type, Doc, Params) when is_binary(Index), is_binary(Type), is_binary(Doc), is_list(Params) -> 
+    count(ServerRef, [Index], [Type], Doc, Params);
+count(ServerRef, Indexes, Type, Doc, Params) when is_list(Indexes), is_binary(Type), is_binary(Doc), is_list(Params) -> 
+    count(ServerRef, Indexes, [Type], Doc, Params);
+count(ServerRef, Index, Types, Doc, Params) when is_binary(Index), is_list(Types), is_binary(Doc), is_list(Params) -> 
+    count(ServerRef, [Index], Types, Doc, Params);
+count(ServerRef, Indexes, Types, Doc, Params) when is_list(Indexes), is_list(Types), is_binary(Doc), is_list(Params) -> 
+    gen_server:call(get_target(ServerRef), {count, Indexes, Types, Doc, Params}).
+
+%% @equiv delete_by_query(ServerRef, [], [], Doc []).
+-spec delete_by_query(server_ref(), doc()) -> response().
+delete_by_query(ServerRef, Doc) when is_binary(Doc) ->
+    delete_by_query(ServerRef, ?ALL, [], Doc, []).
+
+%% @equiv delete_by_query(ServerRef, [], [], Doc, Params).
+-spec delete_by_query(server_ref(), doc(), params()) -> response().
+delete_by_query(ServerRef, Doc, Params) when is_binary(Doc), is_list(Params) ->
+    delete_by_query(ServerRef, ?ALL, [], Doc, Params).
+
+%% @equiv delete_by_query(ServerRef, Index, [], Doc, Params).
+-spec delete_by_query(server_ref(), [index() | [index()]], doc(), params()) -> response().
+delete_by_query(ServerRef, Index, Doc, Params) when is_binary(Index), is_binary(Doc), is_list(Params) ->
+    delete_by_query(ServerRef, [Index], [], Doc, Params);
+delete_by_query(ServerRef, Indexes, Doc, Params) when is_list(Indexes), is_binary(Doc), is_list(Params) ->
+    delete_by_query(ServerRef, Indexes, [], Doc, Params).
+
+%% @doc Get the number of matches for a query
+-spec delete_by_query(server_ref(), [index() | [index()]], [type() | [type()]], doc(), params()) -> boolean().
+delete_by_query(ServerRef, Index, Type, Doc, Params) when is_binary(Index), is_binary(Type), is_binary(Doc), is_list(Params) -> 
+    delete_by_query(ServerRef, [Index], [Type], Doc, Params);
+delete_by_query(ServerRef, Indexes, Type, Doc, Params) when is_list(Indexes), is_binary(Type), is_binary(Doc), is_list(Params) -> 
+    delete_by_query(ServerRef, Indexes, [Type], Doc, Params);
+delete_by_query(ServerRef, Index, Types, Doc, Params) when is_binary(Index), is_list(Types), is_binary(Doc), is_list(Params) -> 
+    delete_by_query(ServerRef, [Index], Types, Doc, Params);
+delete_by_query(ServerRef, Indexes, Types, Doc, Params) when is_list(Indexes), is_list(Types), is_binary(Doc), is_list(Params) -> 
+    gen_server:call(get_target(ServerRef), {delete_by_query, Indexes, Types, Doc, Params}).
 
 %% @doc Check if a type exists in an index/indices in the ElasticSearch cluster
 -spec is_type(server_ref(), [index() | [index()]], [type() | [type()]]) -> boolean().
@@ -373,6 +433,16 @@ handle_call({_Request = close_index, Index}, _From, State = #state{connection = 
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
     {reply, RestResponse, State#state{connection = Connection1}};
 
+handle_call({_Request = count, Index, Type, Doc, Params}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_count(Index, Type, Doc, Params),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
+handle_call({_Request = delete_by_query, Index, Type, Doc, Params}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_delete_by_query(Index, Type, Doc, Params),
+    {Connection1, RestResponse} = process_request(Connection0, RestRequest),
+    {reply, RestResponse, State#state{connection = Connection1}};
+
 handle_call({_Request = is_index, Index}, _From, State = #state{connection = Connection0}) ->
     RestRequest = rest_request_is_index(Index),
     {Connection1, RestResponse} = process_request(Connection0, RestRequest),
@@ -518,6 +588,28 @@ rest_request_close_index(Index) when is_binary(Index) ->
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri}.
 
+rest_request_count(Index, Type, Doc, Params) when is_list(Index),
+                                        is_list(Type),
+                                        is_binary(Doc),
+                                        is_list(Params) ->
+    IndexList = bstr:join(Index, <<",">>),
+    TypeList = bstr:join(Type, <<",">>),
+    Uri = make_uri([IndexList, TypeList, ?COUNT], Params),
+    #restRequest{method = ?elasticsearch_Method_GET,
+                 uri = Uri,
+                 body = Doc}.
+
+rest_request_delete_by_query(Index, Type, Doc, Params) when is_list(Index),
+                                        is_list(Type),
+                                        is_binary(Doc),
+                                        is_list(Params) ->
+    IndexList = bstr:join(Index, <<",">>),
+    TypeList = bstr:join(Type, <<",">>),
+    Uri = make_uri([IndexList, TypeList, ?QUERY], Params),
+    #restRequest{method = ?elasticsearch_Method_DELETE,
+                 uri = Uri,
+                 body = Doc}.
+
 rest_request_is_index(Index) when is_list(Index) ->
     IndexList = bstr:join(Index, <<",">>),
     #restRequest{method = ?elasticsearch_Method_HEAD,
@@ -642,6 +734,9 @@ is_200_or_201({ok, Response}) ->
         _ -> false
     end.
 
+-spec decode_response(response()) -> any().
+decode_response({ok, {_,_,_,Json}}) ->
+    jsx:decode(Json).
 
 %% @doc Get the target for the server_ref
 -spec get_target(server_ref()) -> target().

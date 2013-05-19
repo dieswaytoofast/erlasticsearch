@@ -50,6 +50,11 @@
 -define(FLUSH, <<"_flush">>).
 -define(OPEN, <<"_open">>).
 -define(CLOSE, <<"_close">>).
+-define(COUNT, <<"_count">>).
+-define(QUERY, <<"_query">>).
 -define(OPTIMIZE, <<"_optimize">>).
 -define(SEGMENTS, <<"_segments">>).
 -define(CLEAR_CACHE, <<"_cache/clear">>).
+
+% Shortcuts
+-define(ALL, <<"_all">>).
