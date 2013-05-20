@@ -9,6 +9,8 @@ Installation
 Add this as a rebar dependency to your project.
 
 1. Be sure to set up ElasticSearch to support thrift!
+   * Install the thrift plugin (available [here](https://github.com/elasticsearch/elasticsearch-transport-thrift))
+      * Probably something like --> ```bin/plugin -install elasticsearch/elasticsearch-transport-thrift/1.5.0.```
    * You'll need to add (at least) the following settings to config.yaml
       * ```thrift.port: 9500```
       * ```thrift.protocol: 'binary'```
@@ -16,6 +18,8 @@ Add this as a rebar dependency to your project.
     * Start ElasticSearch
        * If you plan on running the tests, you probably want to do this.
        * Heck, if you plan on using ElasticSearch, you probably want to do this.
+       * If you plan on running the tests, you might want to run it in 'in-memory' mode.
+          * Probably something like --> ```elasticsearch -f -Des.index.storage.type=memory -Des.config=/usr/local/opt/elasticsearch/config/elasticsearch.yml```
 1. Update your environment with the following parameters (look in [app.config](https://github.com/dieswaytoofast/erlasticsearch/blob/master/app.config) for examples)
    * ```thrift.options```
    * ```thrift.host```
