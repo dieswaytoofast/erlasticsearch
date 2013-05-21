@@ -26,7 +26,7 @@
 -type params()          :: [tuple()].
 -type client_name()     :: binary().
 -type registered_name() :: atom().
--type server_ref()      :: atom() | pid() | client_name().
+-type server_ref()      :: atom() | pid().
 -type target()          :: atom() | pid().
 
 
