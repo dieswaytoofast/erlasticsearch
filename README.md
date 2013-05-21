@@ -25,7 +25,7 @@ Add this as a rebar dependency to your project.
    * ```thrift.host```
    * ```thrift.port```
 1. Start a client process
-	* ```erlasticsearch:start_client(<<"some_unique_name_here">>).```
+	* ```erlasticsearch:start_link().```
 1. Profit
 
 
@@ -51,14 +51,10 @@ __**YOU HAVE BEEN WARNED**__
 Details
 ============
 
-1. The thrift client is in the form of a _simple_one_for_one_ supervised client process (a _gen_server_).  You need to explicitly start at least one client process as follows
-	* ```erlasticsearch:start_client(<<"some_unique_name_here">>).```
-1. Once the client process has been started, you can use either of the following to refer to it
-   * The _ClientName_ (e.g. <<"_some_unique_name_here_">>)  that you used when you started the process (a ```binary()```)
-   * The Pid of the client process
-   * The _registered_name_ of the client_process 
-      * accessible as ```erlasticsearch:registered_name(ClientName)``` (which is an ```atom()```)
-1. Any JSON expected by ElasticSearch will need to go in as JSON  
+1. erlasticsearch includes a poolboy module which starts up a pool as specified in the application environment variable _pools_.  See [poolboy](https://github.com/devinus/poolboy/blob/master/README.md) for how to configure a pool.  The default pool has 10 clients and is called _erlasticsearch_pool_.  You can run functions on this pool by using the _erlasticsearch_poolboy_ module functions.
+1. The thrift client is in the form of a _gen_server_ process (a _gen_server_).  You can start a client process as follows
+	* ```{ok, Pid} = erlasticsearch:start_link().```
+1. Any JSON expected by ElasticSearch will need to go in as JSON
    * For example --> ```<<"{\"settings\":{\"number_of_shards\":3}}">>```
 1. Output returned by most everything is in the form ```{ok, #restResponse{}} | error()```
    * See the format of ```#restResponse{}``` [here](https://github.com/dieswaytoofast/erlasticsearch/blob/master/src/elasticsearch_types.hrl).
@@ -67,40 +63,6 @@ Details
       * e.g. --> ```<<"{\"ok\":true,\"acknowledged\":true}">>```
 1. Boolean methods (e.g. ```is_index/2, is_type/3, is_doc/4```) return a ```boolean()``` (d-uh)
 
-
-Client Process Management
------
-These methods are available to start and stop the thrift client processes.
-Note that once the process has been started, you can reference it through either _ClientName_, the Pid, or the name it is registered under (```erlasticsearch:registered_name/1```)
-
-Function | Parameters | Description
------ | ----------- | --------
-start_client/1 | ClientName  | Start a client process reference-able as _ClientName_
-start_client/2 | ClientName, Parameters | Start a client process reference-able as _ClientName_, with additional thrift parameters (also settable as _thrift_options_ in ```app.config```)
-stop_client/1 | ClientName  | Stop the client process references as _ClientName_
-registered_name/1 | ClientName  | The atom that the thrift client process is registered under
-
-
-**EXAMPLES**
-
-```erlang
-erlasticsearch@pecorino)1> erlasticsearch:start_client(<<"bar1">>).
-{ok,<0.178.0>}
-erlasticsearch@pecorino)2>{ok, Pid} = erlasticsearch:start_client(<<"bar2">>, [{framed, true}]).
-{ok,<0.182.0>}
-erlasticsearch@pecorino)3> erlasticsearch:registered_name(<<"bar2">>).
-'erlasticsearch_bar2.client'
-erlasticsearch@pecorino)4> erlasticsearch:flush(<<"bar2">>).
-{ok,{restResponse,200,undefined,<<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
-erlasticsearch@pecorino)5> erlasticsearch:flush('erlasticsearch_bar2.client').
-{ok,{restResponse,200,undefined,<<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
-erlasticsearch@pecorino)6> erlasticsearch:flush(Pid).
-{ok,{restResponse,200,undefined,<<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
-erlasticsearch@pecorino)7> erlasticsearch:stop_client(<<"bar1">>).
-ok
-erlasticsearch@pecorino)8> erlasticsearch:stop_client(<<"bar2">>).
-ok
-```
 
 Index CRUD
 -----
@@ -121,53 +83,53 @@ close_index/2 | ServerRef, IndexName  | Closes the Index called _IndexName_
 **EXAMPLES**
 
 ```erlang
-erlasticsearch@pecorino)1> erlasticsearch:start_client(<<"bar">>).
+erlasticsearch@pecorino)1> {ok, Pid} = erlasticsearch:start_link().
 {ok,<0.178.0>}
-erlasticsearch@pecorino)2> erlasticsearch:create_index(<<"bar">>, <<"foo2">>).
+erlasticsearch@pecorino)2> erlasticsearch:create_index(Pid, <<"foo2">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"acknowledged\":true}">>}}
-erlasticsearch@pecorino)3> erlasticsearch:create_index(<<"bar">>, <<"foo3">>, <<"{\"settings\":{\"number_of_shards\":3}}">>).
+erlasticsearch@pecorino)3> erlasticsearch:create_index(Pid, <<"foo3">>, <<"{\"settings\":{\"number_of_shards\":3}}">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"acknowledged\":true}">>}}
-erlasticsearch@pecorino)4> erlasticsearch:create_index(<<"bar">>, <<"foo4">>, <<"{\"settings\":{\"number_of_shards\":3}}">>).
-{ok,{restResponse,200,undefined,
-                  <<"{\"ok\":true,\"acknowledged\":true}">>}}
-```
-```erlang
-erlasticsearch@pecorino)5> erlasticsearch:delete_index(<<"bar">>, <<"foo2">>).                                               
+erlasticsearch@pecorino)4> erlasticsearch:create_index(Pid, <<"foo4">>, <<"{\"settings\":{\"number_of_shards\":3}}">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"acknowledged\":true}">>}}
 ```
 ```erlang
-erlasticsearch@pecorino)6> erlasticsearch:is_index(<<"bar">>, <<"foo3">>).    
+erlasticsearch@pecorino)5> erlasticsearch:delete_index(Pid, <<"foo2">>).
+{ok,{restResponse,200,undefined,
+                  <<"{\"ok\":true,\"acknowledged\":true}">>}}
+```
+```erlang
+erlasticsearch@pecorino)6> erlasticsearch:is_index(Pid, <<"foo3">>).
 false
-erlasticsearch@pecorino)7> erlasticsearch:is_index(<<"bar">>, <<"foo4">>).
+erlasticsearch@pecorino)7> erlasticsearch:is_index(Pid, <<"foo4">>).
 true
-erlasticsearch@pecorino)8> erlasticsearch:is_index(<<"bar">>, [<<"foo3">>, <<"foo4">>]).
+erlasticsearch@pecorino)8> erlasticsearch:is_index(Pid, [<<"foo3">>, <<"foo4">>]).
 true
-erlasticsearch@pecorino)9> erlasticsearch:is_index(<<"bar">>, <<"no_such_index">>).
+erlasticsearch@pecorino)9> erlasticsearch:is_index(Pid, <<"no_such_index">>).
 false
-erlasticsearch@pecorino)10> erlasticsearch:is_type(<<"bar">>, <<"foo3">>, <<"existing_type_1">>).
+erlasticsearch@pecorino)10> erlasticsearch:is_type(Pid, <<"foo3">>, <<"existing_type_1">>).
 true
-erlasticsearch@pecorino)11> erlasticsearch:is_type(<<"bar">>, [<<"foo3">>, <<"foo4">>], <<"existing_type_1">>).
+erlasticsearch@pecorino)11> erlasticsearch:is_type(Pid, [<<"foo3">>, <<"foo4">>], <<"existing_type_1">>).
 true
-erlasticsearch@pecorino)11> erlasticsearch:is_type(<<"bar">>, [<<"foo3">>, <<"foo4">>], [<<"existing_type_1">>, <<"existing_type_2">>]).
+erlasticsearch@pecorino)11> erlasticsearch:is_type(Pid, [<<"foo3">>, <<"foo4">>], [<<"existing_type_1">>, <<"existing_type_2">>]).
 true
 ```
 ```erlang
-erlasticsearch@pecorino)12> erlasticsearch:open_index(<<"bar">>, <<"index1">>).
+erlasticsearch@pecorino)12> erlasticsearch:open_index(Pid, <<"index1">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"acknowledged\":true}">>}}
-erlasticsearch@pecorino)13> erlasticsearch:close_index(<<"bar">>, <<"index1">>).
+erlasticsearch@pecorino)13> erlasticsearch:close_index(Pid, <<"index1">>).
 {ok,{restResponse,200,undefined,
-                  <<"{\"ok\":true,\"acknowledged\":true}">>}}  
+                  <<"{\"ok\":true,\"acknowledged\":true}">>}}
 ```
 
 
 
 Document CRUD
 -----
-These methods are available to perform CRUD activities on actual documents 
+These methods are available to perform CRUD activities on actual documents
 
 Function | Parameters | Description
 ----- | ----------- | --------
@@ -193,7 +155,7 @@ delete_by_query/5 | ServerRef, IndexName, TypeName, Doc, Params | Deletes the do
 
 
 
-_Note_: 
+_Note_:
 
 1. For both ```insert_doc/4``` and ```insert_doc/5```, sending in ```undefined``` as the ```Id``` will result in ElasticSearch generating an Id for the document.  This Id will be returned as part of the result...
 2. Yes, the order of the arguments to mget_doc/[2,3,4] is weird.  Its just that ElasticSearch is slightly strange in this one...
@@ -201,122 +163,122 @@ _Note_:
 **EXAMPLES**
 
 ```erlang
-erlasticsearch@pecorino)5> erlasticsearch:start_client(<<"bar">>).
+erlasticsearch@pecorino)5> {ok, Pid} = erlasticsearch:start_link().
 {ok,<0.178.0>}
-erlasticsearch@pecorino)6> erlasticsearch:insert_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"id1">>, <<"{\"some_key\":\"some_val\"}">>).
+erlasticsearch@pecorino)6> erlasticsearch:insert_doc(Pid, <<"index1">>, <<"type1">>, <<"id1">>, <<"{\"some_key\":\"some_val\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1}">>}}
-erlasticsearch@pecorino)7> erlasticsearch:insert_doc(<<"bar">>, <<"index2">>, <<"type3">>, <<"id2">>, <<"{\"some_key\":\"some_val\"}">>, [{'_ttl', '1d'}]). 
+erlasticsearch@pecorino)7> erlasticsearch:insert_doc(Pid, <<"index2">>, <<"type3">>, <<"id2">>, <<"{\"some_key\":\"some_val\"}">>, [{'_ttl', '1d'}]).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index2\",\"_type\":\"type3\",\"_id\":\"id2\",\"_version\":1}">>}}
-erlasticsearch@pecorino)8> erlasticsearch:insert_doc(<<"bar">>, <<"index3">>, <<"type3">>, undefined, <<"{\"some_key\":\"some_val\"}">>).
+erlasticsearch@pecorino)8> erlasticsearch:insert_doc(Pid, <<"index3">>, <<"type3">>, undefined, <<"{\"some_key\":\"some_val\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index3\",\"_type\":\"type3\",\"_id\":\"8Ji9R-TtT4KXxUOvb14K8g\",\"_version\":1}">>}}
 ```
 ```erlang
-erlasticsearch@pecorino)9> erlasticsearch:is_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"id1">>).
+erlasticsearch@pecorino)9> erlasticsearch:is_doc(Pid, <<"index1">>, <<"type1">>, <<"id1">>).
 true
 ```
 ```erlang
-erlasticsearch@pecorino)9> erlasticsearch:get_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"id1">>).
+erlasticsearch@pecorino)9> erlasticsearch:get_doc(Pid, <<"index1">>, <<"type1">>, <<"id1">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1,\"exists\":true, \"_source\" : {\"som"...>>}}
-erlasticsearch@pecorino)10> erlasticsearch:get_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"id1">>, [{fields, foobar}]).
+erlasticsearch@pecorino)10> erlasticsearch:get_doc(Pid, <<"index1">>, <<"type1">>, <<"id1">>, [{fields, foobar}]).
 {ok,{restResponse,200,undefined,
                   <<"{\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1,\"exists\":true}">>}}
-erlasticsearch@pecorino)11> erlasticsearch:get_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"id1">>, [{fields, some_key}]).
+erlasticsearch@pecorino)11> erlasticsearch:get_doc(Pid, <<"index1">>, <<"type1">>, <<"id1">>, [{fields, some_key}]).
 {ok,{restResponse,200,undefined,
                   <<"{\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1,\"exists\":true,\"fields\":{\"some_ke"...>>}}
 ```
 ```erlang
-erlasticsearch@pecorino)12> erlasticsearch:delete_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"id1">>).                   
+erlasticsearch@pecorino)12> erlasticsearch:delete_doc(Pid, <<"index1">>, <<"type1">>, <<"id1">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"found\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":2}">>}}
 ```
 ```erlang
-erlasticsearch@pecorino)13> erlasticsearch:insert_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+erlasticsearch@pecorino)13> erlasticsearch:insert_doc(Pid, <<"index1">>, <<"type1">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}">>}}
-erlasticsearch@pecorino)14> erlasticsearch:insert_doc(<<"bar">>, <<"index2">>, <<"type2">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+erlasticsearch@pecorino)14> erlasticsearch:insert_doc(Pid, <<"index2">>, <<"type2">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index2\",\"_type\":\"type2\",\"_id\":\"1\",\"_version\":1}">>}}
-erlasticsearch@pecorino)15> erlasticsearch:count(<<"bar">>, <<>>).
+erlasticsearch@pecorino)15> erlasticsearch:count(Pid, <<>>).
 {ok,{restResponse,200,undefined,
                   <<"{\"count\":4,\"_shards\":{\"total\":105,\"successful\":105,\"failed\":0}}">>}}
-erlasticsearch@pecorino)16> erlasticsearch:count(<<"bar">>, <<>>, [{q, <<"key_1:value_1">>}]).
-{ok,{restResponse,200,undefined,           
-                  <<"{\"count\":2,\"_shards\":{\"total\":105,\"successful\":105,\"failed\":0}}">>}}
-erlasticsearch@pecorino)17> erlasticsearch:count(<<"bar">>, <<"{\"term\":{\"key_1\":\"value_1\"}}">>, []).
+erlasticsearch@pecorino)16> erlasticsearch:count(Pid, <<>>, [{q, <<"key_1:value_1">>}]).
 {ok,{restResponse,200,undefined,
                   <<"{\"count\":2,\"_shards\":{\"total\":105,\"successful\":105,\"failed\":0}}">>}}
-erlasticsearch@pecorino)18> erlasticsearch:count(<<"bar">>, [<<"index1">>],<<>>, [{q, <<"key_1:value_1">>}]).
+erlasticsearch@pecorino)17> erlasticsearch:count(Pid, <<"{\"term\":{\"key_1\":\"value_1\"}}">>, []).
+{ok,{restResponse,200,undefined,
+                  <<"{\"count\":2,\"_shards\":{\"total\":105,\"successful\":105,\"failed\":0}}">>}}
+erlasticsearch@pecorino)18> erlasticsearch:count(Pid, [<<"index1">>],<<>>, [{q, <<"key_1:value_1">>}]).
 {ok,{restResponse,200,undefined,
                   <<"{\"count\":1,\"_shards\":{\"total\":5,\"successful\":5,\"failed\":0}}">>}}
-erlasticsearch@pecorino)19> erlasticsearch:count(<<"bar">>, [<<"index1">>,<<"index2">>],[<<"type1">>, <<"type2">>],<<>>, [{q, <<"key_1:value_1">>}]).
+erlasticsearch@pecorino)19> erlasticsearch:count(Pid, [<<"index1">>,<<"index2">>],[<<"type1">>, <<"type2">>],<<>>, [{q, <<"key_1:value_1">>}]).
 {ok,{restResponse,200,undefined,
                   <<"{\"count\":2,\"_shards\":{\"total\":10,\"successful\":10,\"failed\":0}}">>}}
-```              
+```
 ```erlang
-erlasticsearch@pecorino)20> erlasticsearch:insert_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+erlasticsearch@pecorino)20> erlasticsearch:insert_doc(Pid, <<"index1">>, <<"type1">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}">>}}
-erlasticsearch@pecorino)21> erlasticsearch:insert_doc(<<"bar">>, <<"index2">>, <<"type2">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+erlasticsearch@pecorino)21> erlasticsearch:insert_doc(Pid, <<"index2">>, <<"type2">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index2\",\"_type\":\"type2\",\"_id\":\"1\",\"_version\":1}">>}}
-erlasticsearch@pecorino)22> erlasticsearch:delete_by_query(<<"bar">>, <<"{\"term\":{\"key_1\":\"value_1\"}}">>).                  {ok,{restResponse,200,undefined,
+erlasticsearch@pecorino)22> erlasticsearch:delete_by_query(Pid, <<"{\"term\":{\"key_1\":\"value_1\"}}">>).                  {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"_indices\":{\"index_137402104\":{\"_shards\":{\"total\":5,\"successful\":5,\"failed\":0}},\""...>>}}
-erlasticsearch@pecorino)23> erlasticsearch:count(<<"bar">>, <<"{\"term\":{\"key_1\":\"value_1\"}}">>).                            {ok,{restResponse,200,undefined,
+erlasticsearch@pecorino)23> erlasticsearch:count(Pid, <<"{\"term\":{\"key_1\":\"value_1\"}}">>).                            {ok,{restResponse,200,undefined,
                   <<"{\"count\":0,\"_shards\":{\"total\":245,\"successful\":245,\"failed\":0}}">>}}
 ```
 ```erlang
-erlasticsearch@pecorino)24> erlasticsearch:insert_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+erlasticsearch@pecorino)24> erlasticsearch:insert_doc(Pid, <<"index1">>, <<"type1">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}">>}}
-erlasticsearch@pecorino)25> erlasticsearch:insert_doc(<<"bar">>, <<"index2">>, <<"type2">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+erlasticsearch@pecorino)25> erlasticsearch:insert_doc(Pid, <<"index2">>, <<"type2">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index2\",\"_type\":\"type2\",\"_id\":\"1\",\"_version\":1}">>}}
-erlasticsearch@pecorino)26> erlasticsearch:delete_by_query(<<"bar">>, <<>>, [{q, <<"key1:value1">>}]).
+erlasticsearch@pecorino)26> erlasticsearch:delete_by_query(Pid, <<>>, [{q, <<"key1:value1">>}]).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"_indices\":{\"index_137402104\":{\"_shards\":{\"total\":5,\"successful\":5,\"failed\":0}},\""...>>}}
-erlasticsearch@pecorino)27> erlasticsearch:count(<<"bar">>, <<"{\"term\":{\"key_1\":\"value_1\"}}">>).
+erlasticsearch@pecorino)27> erlasticsearch:count(Pid, <<"{\"term\":{\"key_1\":\"value_1\"}}">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"count\":0,\"_shards\":{\"total\":245,\"successful\":245,\"failed\":0}}">>}}
 ```
 ```erlang
-erlasticsearch@pecorino)28> erlasticsearch:insert_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+erlasticsearch@pecorino)28> erlasticsearch:insert_doc(Pid, <<"index1">>, <<"type1">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"1\",\"_version\":1}">>}}
-erlasticsearch@pecorino)29> erlasticsearch:insert_doc(<<"bar">>, <<"index2">>, <<"type2">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
+erlasticsearch@pecorino)29> erlasticsearch:insert_doc(Pid, <<"index2">>, <<"type2">>, <<"1">>, <<"{\"key_1\":\"value_1\"},{\"key_2\":\"value_2\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index2\",\"_type\":\"type2\",\"_id\":\"1\",\"_version\":1}">>}}
-erlasticsearch@pecorino)30> erlasticsearch:delete_by_query(<<"bar">>, [<<"index1">>, <<"index2">>], [<<"type1">>, <<"type2">>], <<>>, [{q, <<"key1:value1">>}]).
+erlasticsearch@pecorino)30> erlasticsearch:delete_by_query(Pid, [<<"index1">>, <<"index2">>], [<<"type1">>, <<"type2">>], <<>>, [{q, <<"key1:value1">>}]).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"_indices\":{\"index1\":{\"_shards\":{\"total\":5,\"successful\":5,\"failed\":0}},\"index2\":{"...>>}}
-erlasticsearch@pecorino)31> erlasticsearch:count(<<"bar">>, <<"{\"term\":{\"key_1\":\"value_1\"}}">>).
+erlasticsearch@pecorino)31> erlasticsearch:count(Pid, <<"{\"term\":{\"key_1\":\"value_1\"}}">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"count\":0,\"_shards\":{\"total\":245,\"successful\":245,\"failed\":0}}">>}}
 ```
 ```erlang
-erlasticsearch@pecorino)32> erlasticsearch:insert_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"id1">>, <<"{\"key_1\":\"value_1\"}">>).
+erlasticsearch@pecorino)32> erlasticsearch:insert_doc(Pid, <<"index1">>, <<"type1">>, <<"id1">>, <<"{\"key_1\":\"value_1\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1}">>}}
-erlasticsearch@pecorino)33>  erlasticsearch:insert_doc(<<"bar">>, <<"index2">>, <<"type2">>, <<"id2">>, <<"{\"key_2\":\"value_2\"}">>).
+erlasticsearch@pecorino)33>  erlasticsearch:insert_doc(Pid, <<"index2">>, <<"type2">>, <<"id2">>, <<"{\"key_2\":\"value_2\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index2\",\"_type\":\"type2\",\"_id\":\"id2\",\"_version\":1}">>}}
 erlasticsearch@pecorino)34> FullDoc = jsx:encode([{docs, [[{<<"_index">>, <<"index1">>},{<<"_type">>, <<"type1">>},{<<"_id">>, <<"id1">>}], [{<<"_index">>, <<"index2">>},{<<"_type">>, <<"type2">>},{<<"_id">>, <<"id2">>}]]}]).
 <<"{\"docs\":[{\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\"},{\"_index\":\"index2\",\"_type\":\"type2\",\"_id\":\"id2\"}]}">>
-erlasticsearch@pecorino)35> erlasticsearch:mget_doc(<<"bar">>, FullDoc).                                                         {ok,{restResponse,200,undefined,                                                                
+erlasticsearch@pecorino)35> erlasticsearch:mget_doc(Pid, FullDoc).                                                         {ok,{restResponse,200,undefined,
                   <<"{\"docs\":[{\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1,\"exists\":true, \"_source"...>>}}
 erlasticsearch@pecorino)36> TypeDoc = jsx:encode([{docs, [[{<<"_type">>, <<"type1">>},{<<"_id">>, <<"id1">>}], [{<<"_type">>, <<"type2">>},{<<"_id">>, <<"id2">>}]]}]).
 <<"{\"docs\":[{\"_type\":\"type1\",\"_id\":\"id1\"},{\"_type\":\"type2\",\"_id\":\"id2\"}]}">>
-erlasticsearch@pecorino)37> erlasticsearch:mget_doc(<<"bar">>, <<"index1">>, TypeDoc).
-{ok,{restResponse,200,undefined,   
+erlasticsearch@pecorino)37> erlasticsearch:mget_doc(Pid, <<"index1">>, TypeDoc).
+{ok,{restResponse,200,undefined,
                   <<"{\"docs\":[{\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1,\"exists\":true, \"_source"...>>}}
 erlasticsearch@pecorino)38> IdDoc = jsx:encode([{docs, [[{<<"_id">>, <<"id1">>}], [{<<"_id">>, <<"id2">>}]]}]).
 <<"{\"docs\":[{\"_id\":\"id1\"},{\"_id\":\"id2\"}]}">>
-erlasticsearch@pecorino)39> erlasticsearch:mget_doc(<<"bar">>, <<"index1">>, <<"type1">>, IdDoc).
+erlasticsearch@pecorino)39> erlasticsearch:mget_doc(Pid, <<"index1">>, <<"type1">>, IdDoc).
 {ok,{restResponse,200,undefined,
-                  <<"{\"docs\":[{\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1,\"exists\":true, \"_source"...>>}}           
+                  <<"{\"docs\":[{\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1,\"exists\":true, \"_source"...>>}}
 ```
 
 
@@ -335,12 +297,12 @@ search/5 | ServerRef, IndexName, Type, Doc, Params  | Searches the index _IndexN
 **EXAMPLES**
 
 ```erlang
-erlasticsearch@pecorino)1> erlasticsearch:start_client(<<"bar">>).
+erlasticsearch@pecorino)1> {ok, Pid} = erlasticsearch:start_link().
 {ok,<0.178.0>}
-erlasticsearch@pecorino)2> erlasticsearch:insert_doc(<<"bar">>, <<"index1">>, <<"type1">>, <<"id1">>, <<"{\"some_key\":\"some_val\"}">>).
+erlasticsearch@pecorino)2> erlasticsearch:insert_doc(Pid, <<"index1">>, <<"type1">>, <<"id1">>, <<"{\"some_key\":\"some_val\"}">>).
 {ok,{restResponse,201,undefined,
                   <<"{\"ok\":true,\"_index\":\"index1\",\"_type\":\"type1\",\"_id\":\"id1\",\"_version\":1}">>}}
-erlasticsearch@pecorino)3> erlasticsearch:search(<<"bar">>, <<"index1">>, <<"type1">>, <<>>, [{q, "some_key:some_val"}]).     
+erlasticsearch@pecorino)3> erlasticsearch:search(Pid, <<"index1">>, <<"type1">>, <<>>, [{q, "some_key:some_val"}]).
 {ok,{restResponse,200,undefined,
                   <<"{\"took\":1,\"timed_out\":false,\"_shards\":{\"total\":5,\"successful\":5,\"failed\":0},\"hits\":{\"total\":"...>>}}
 ```
@@ -368,38 +330,38 @@ clear_cache/3 | ServerRef, Index, params | Clears all the caches associated with
 **EXAMPLES**
 
 ```erlang
-erlasticsearch@pecorino)1> erlasticsearch:start_client(<<"bar">>).
+erlasticsearch@pecorino)1> {ok, Pid} = erlasticsearch:start_link().
 {ok,<0.178.0>}
-erlasticsearch@pecorino)2> erlasticsearch:refresh(<<"bar">>).                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}} 
-erlasticsearch@pecorino)3> erlasticsearch:refresh(<<"bar">>, <<"index1">>).                                                                        {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":10,\"successful\":5,\"failed\":0}}">>}}
-erlasticsearch@pecorino)4> erlasticsearch:refresh(<<"bar">>, [<<"index1">>, <<"index2">>]).
-{ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":16,\"successful\":8,\"failed\":0}}">>}} 
+erlasticsearch@pecorino)2> erlasticsearch:refresh(Pid).                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
+erlasticsearch@pecorino)3> erlasticsearch:refresh(Pid, <<"index1">>).                                                                        {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":10,\"successful\":5,\"failed\":0}}">>}}
+erlasticsearch@pecorino)4> erlasticsearch:refresh(Pid, [<<"index1">>, <<"index2">>]).
+{ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":16,\"successful\":8,\"failed\":0}}">>}}
 ```
 ```erlang
-erlasticsearch@pecorino)5> erlasticsearch:flush(<<"bar">>).                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}} 
-erlasticsearch@pecorino)6> erlasticsearch:refresh(<<"bar">>, <<"index1">>).                                                                        {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":10,\"successful\":5,\"failed\":0}}">>}}
-erlasticsearch@pecorino)7> erlasticsearch:refresh(<<"bar">>, [<<"index1">>, <<"index2">>]).
-{ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":16,\"successful\":8,\"failed\":0}}">>}} 
+erlasticsearch@pecorino)5> erlasticsearch:flush(Pid).                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
+erlasticsearch@pecorino)6> erlasticsearch:refresh(Pid, <<"index1">>).                                                                        {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":10,\"successful\":5,\"failed\":0}}">>}}
+erlasticsearch@pecorino)7> erlasticsearch:refresh(Pid, [<<"index1">>, <<"index2">>]).
+{ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":16,\"successful\":8,\"failed\":0}}">>}}
 ```
 ```erlang
-erlasticsearch@pecorino)8> erlasticsearch:status(<<"bar">>, <<"index1">>).
+erlasticsearch@pecorino)8> erlasticsearch:status(Pid, <<"index1">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"_shards\":{\"total\":6,\"successful\":3,\"failed\":0},\"indices\":{\"index1\":{\"index\":{\"prim"...>>}}
-erlasticsearch@pecorino)9> erlasticsearch:status(<<"bar">>, [<<"index1">>, <<"index2">>]).
+erlasticsearch@pecorino)9> erlasticsearch:status(Pid, [<<"index1">>, <<"index2">>]).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"_shards\":{\"total\":16,\"successful\":8,\"failed\":0},\"indices\":{\"index2\":{\"index\":{\"pri"...>>}}
-erlasticsearch@pecorino)10> erlasticsearch:optimize(<<"bar">>, <<"index1">>).     
+erlasticsearch@pecorino)10> erlasticsearch:optimize(Pid, <<"index1">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"_shards\":{\"total\":10,\"successful\":5,\"failed\":0}}">>}}
-erlasticsearch@pecorino)11> erlasticsearch:optimize(<<"bar">>, [<<"index1">>, <<"index2">>]).
+erlasticsearch@pecorino)11> erlasticsearch:optimize(Pid, [<<"index1">>, <<"index2">>]).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"_shards\":{\"total\":16,\"successful\":8,\"failed\":0}}">>}}
-erlasticsearch@pecorino)12> erlasticsearch:optimize(<<"bar">>).                         
+erlasticsearch@pecorino)12> erlasticsearch:optimize(Pid).
 {ok,{restResponse,200,undefined,
-                  <<"{\"ok\":true,\"_shards\":{\"total\":692,\"successful\":346,\"failed\":0}}">>}}                  
+                  <<"{\"ok\":true,\"_shards\":{\"total\":692,\"successful\":346,\"failed\":0}}">>}}
 ```
 ```erlang
-erlasticsearch@pecorino)13> erlasticsearch:segments(<<"bar1">>).                                     
+erlasticsearch@pecorino)13> erlasticsearch:segments(<<"bar1">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"_shards\":{\"total\":170,\"successful\":85,\"failed\":0},\"indices\":{\"test_1\":{\"shards\":"...>>}}
 erlasticsearch@pecorino)14> erlasticsearch:segments(<<"bar1">>, [<<"index1">>]).
@@ -419,9 +381,9 @@ erlasticsearch@pecorino)17> erlasticsearch:clear_cache(<<"bar1">>, [<<"index1">>
 erlasticsearch@pecorino)18> erlasticsearch:clear_cache(<<"bar1">>, [<<"index1">>], [{filter, true}]).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"_shards\":{\"total\":10,\"successful\":5,\"failed\":0}}">>}}
-erlasticsearch@pecorino)19> erlasticsearch:clear_cache(<<"bar1">>, [], [{filter, true}]).            
+erlasticsearch@pecorino)19> erlasticsearch:clear_cache(<<"bar1">>, [], [{filter, true}]).
 {ok,{restResponse,200,undefined,
-                  <<"{\"ok\":true,\"_shards\":{\"total\":140,\"successful\":70,\"failed\":0}}">>}}         
+                  <<"{\"ok\":true,\"_shards\":{\"total\":140,\"successful\":70,\"failed\":0}}">>}}
 ```
 
 
@@ -444,46 +406,46 @@ nodes_stats/3 | ServerRef, NodeName, Params  | Reports the stats of the node _No
 
 **EXAMPLES**
 ```erlang
-erlasticsearch@pecorino)1> erlasticsearch:start_client(<<"bar">>).
+erlasticsearch@pecorino)1> {ok, Pid} = erlasticsearch:start_link().
 {ok,<0.178.0>}
-erlasticsearch@pecorino)2> erlasticsearch:refresh(<<"bar">>).                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
-erlasticsearch@pecorino)3> erlasticsearch:health(<<"bar">>).                          
+erlasticsearch@pecorino)2> erlasticsearch:refresh(Pid).                                                                                   {ok,{restResponse,200,undefined,                                                                                                                                               <<"{\"ok\":true,\"_shards\":{\"total\":552,\"successful\":276,\"failed\":0}}">>}}
+erlasticsearch@pecorino)3> erlasticsearch:health(Pid).
 {ok,{restResponse,200,undefined,
                   <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"status\":\"yellow\",\"timed_out\":false,\"number_of_nodes\""...>>}}
 ```
 ```erlang
-erlasticsearch@pecorino)4> erlasticsearch:state(<<"bar">>).
+erlasticsearch@pecorino)4> erlasticsearch:state(Pid).
 {ok,{restResponse,200,undefined,
                   <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"master_node\":\"7k3ViuT5SQ67ayWsF1y8hQ\",\"blocks\":{\"ind"...>>}}
-erlasticsearch@pecorino)5> erlasticsearch:state(<<"bar">>, [{filter_nodes, true}]).
+erlasticsearch@pecorino)5> erlasticsearch:state(Pid, [{filter_nodes, true}]).
 {ok,{restResponse,200,undefined,
                   <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"blocks\":{\"indices\":{\"index1\":{\"4\":{\"description\":\"inde"...>>}}
 ```
 ```erlang
-erlasticsearch@pecorino)6> erlasticsearch:nodes_info(<<"bar">>).                   
+erlasticsearch@pecorino)6> erlasticsearch:nodes_info(Pid).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"name\":\""...>>}}
-erlasticsearch@pecorino)7> erlasticsearch:nodes_info(<<"bar">>, <<"node1">>).
+erlasticsearch@pecorino)7> erlasticsearch:nodes_info(Pid, <<"node1">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"name\":\""...>>}}
-erlasticsearch@pecorino)8> erlasticsearch:nodes_info(<<"bar">>, [<<"node1">>]).
+erlasticsearch@pecorino)8> erlasticsearch:nodes_info(Pid, [<<"node1">>]).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"name\":\""...>>}}
-erlasticsearch@pecorino)9> erlasticsearch:nodes_info(<<"bar">>, [<<"node1">>], [{os, true}, {process, true}]).
+erlasticsearch@pecorino)9> erlasticsearch:nodes_info(Pid, [<<"node1">>], [{os, true}, {process, true}]).
 {ok,{restResponse,200,undefined,
                   <<"{\"ok\":true,\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"name\":\""...>>}}
 ```
 ```erlang
-erlasticsearch@pecorino)10> erlasticsearch:nodes_stats(<<"bar">>).                              
+erlasticsearch@pecorino)10> erlasticsearch:nodes_stats(Pid).
 {ok,{restResponse,200,undefined,
                   <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"timestamp\":136865"...>>}}
-erlasticsearch@pecorino)11> erlasticsearch:nodes_stats(<<"bar">>, <<"node1">>).
+erlasticsearch@pecorino)11> erlasticsearch:nodes_stats(Pid, <<"node1">>).
 {ok,{restResponse,200,undefined,
                   <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"timestamp\":136865"...>>}}
-erlasticsearch@pecorino)12> erlasticsearch:nodes_stats(<<"bar">>, [<<"node1">>]).
+erlasticsearch@pecorino)12> erlasticsearch:nodes_stats(Pid, [<<"node1">>]).
 {ok,{restResponse,200,undefined,
                   <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"timestamp\":136865"...>>}}
-erlasticsearch@pecorino)13> erlasticsearch:nodes_stats(<<"bar">>, [<<"node1">>], [{process, true}, {transport, true}]).
+erlasticsearch@pecorino)13> erlasticsearch:nodes_stats(Pid, [<<"node1">>], [{process, true}, {transport, true}]).
 {ok,{restResponse,200,undefined,
                   <<"{\"cluster_name\":\"elasticsearch_mahesh\",\"nodes\":{\"node1\":{\"timestamp\":136865"...>>}}
 ```
