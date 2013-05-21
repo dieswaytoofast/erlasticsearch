@@ -192,7 +192,9 @@ get_doc(PoolName, Index, Type, Id) ->
 %% @doc Get a doc from the ElasticSearch cluster
 -spec get_doc(atom(), index(), type(), id(), params()) -> response().
 get_doc(PoolName, Index, Type, Id, Params) ->
-    gen_server:call(PoolName, {get_doc, Index, Type, Id, Params}, infinity).
+    poolboy:transaction(PoolName, fun(Worker) ->
+                gen_server:call(Worker, {get_doc, Index, Type, Id, Params}, infinity)
+        end).
 
 %% @equiv mget_doc(PoolName, <<>>, <<>>, Doc)
 -spec mget_doc(atom(), doc()) -> response().
