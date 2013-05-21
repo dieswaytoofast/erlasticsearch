@@ -1,3 +1,4 @@
+
 %%%-------------------------------------------------------------------
 %%% @author Mahesh Paolini-Subramanya <mahesh@dieswaytoofast.com>
 %%% @copyright (C) 2013 Mahesh Paolini-Subramanya
@@ -20,8 +21,20 @@
                   syntax_tools,
                   sasl,
                   bstr,
-                  lager
+                  lager,
+                  poolboy
                  ]},
   {mod, {erlasticsearch_app, []}},
-  {env, []}
+  {env, [
+            {pools, [
+                  {erlasticsearch_pool,
+                   [
+                    {size, 10},
+                    {max_overflow, 20}
+                   ],
+                   %% options
+                   [
+                   ]}
+                 ]}
+        ]}
  ]}.
