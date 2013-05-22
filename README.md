@@ -30,10 +30,11 @@ Add this as a rebar dependency to your project.
    * ```thrift.port``` (default : *9500*)
    * Poolboy specific information
       * ```pools```
-         * Note that if you are using the _connection pooled_ version (which I recommend! Its easy! You don't need to do anything else!), the default pool has the following parameters
+         * Note that if you are using the _connection pooled_ version (which I recommend! Its easy! You don't need to do anything else!), the default pool has the following          parameters
             * ***Pool Name*** : *erlasticsearch_pool*
             * ***Pool Size*** : *5*
             * ***Pool Max Overflow*** : *10*
+      * If you are not going to use Poolboy, you might want to set the pool _size_ and _max_overflow_ to ***0*** if you don't want a bunch of irrelevant poolboy workers sitting around
          
 1. Start a client process
 	* ```erlasticsearch:start_client(<<"some_unique_name_here">>).```
@@ -80,6 +81,13 @@ Details
    * The payload _from_ ElasticSearch - when it exists - will almost always be JSON
       * e.g. --> ```<<"{\"ok\":true,\"acknowledged\":true}">>```
 1. Boolean methods (e.g. ```is_index/2, is_type/3, is_doc/4```) return a ```boolean()``` (d-uh)
+
+
+Details
+============
+*[Supervisor tree diagram][sup_diagram]:*
+
+[sup_diagram]: https://github.com/dieswaytoofast/erlasticsearch/blob/master/supervision_tree.jpg
 
 
 Client Management
