@@ -8,7 +8,7 @@
 %%% a copy of the New BSD license with this software. If not, it can be
 %%% retrieved from: http://www.opensource.org/licenses/bsd-license.php
 %%%-------------------------------------------------------------------
--module(erlasticsearch_sup).
+-module(erlasticsearch_poolboy_sup).
 -author('Mahesh Paolini-Subramanya <mahesh@dieswaytoofast.com>').
 
 -behaviour(supervisor).
@@ -23,9 +23,8 @@
 
 -define(SERVER, ?MODULE).
 
-%% Helper macro for declaring children of supervisor
--define(SUPERVISOR(Id, Module, Args), {Id, {Module, start_link, Args}, permanent, 5000, supervisor, [Module]}).
--define(WORKER(Id, Module, Args), {Id, {Module, start_link, Args}, permanent, 5000, worker, [Module]}).
+-define(WORKER(Restart, Module, Args), {Module, {Module, start_link, Args}, Restart, 5000, worker, [Module]}).
+-define(SUPERVISOR(Restart, Module, Args), {Module, {Module, start_link, Args}, Restart, 5000, supervisor, [Module]}).
 
 -type startlink_err() :: {'already_started', pid()} | 'shutdown' | term().
 -type startlink_ret() :: {'ok', pid()} | 'ignore' | {'error', startlink_err()}.
@@ -34,16 +33,18 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
+
 -spec init(Args :: term()) -> {ok, {{RestartStrategy :: supervisor:strategy(), MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},
                                     [ChildSpec :: supervisor:child_spec()]}}.
 init([]) ->
-    RestartStrategy = one_for_one,
-    MaxRestarts = 1000,
-    MaxSecondsBetweenRestarts = 3600,
-
-    SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
-
-    % Start up user and department first, 'cos the cache depends on these being up
-    {ok, {SupFlags, [?SUPERVISOR(erlasticsearch_client_sup, erlasticsearch_client_sup, []),
-                     ?SUPERVISOR(erlasticsearch_poolboy_sup, erlasticsearch_poolboy_sup, [])
-                    ]}}.
+    {ok, Pools} = application:get_env(erlasticsearch, pools),
+    PoolSpecs =
+        lists:map(
+          fun({Name, SizeArgs, WorkerArgs}) ->
+                  PoolArgs =
+                      [{name, {local, Name}},
+                       {worker_module, erlasticsearch_poolboy_worker}] ++ SizeArgs,
+                  poolboy:child_spec(Name, PoolArgs, WorkerArgs)
+          end,
+          Pools),
+    {ok, {{one_for_one, 10, 10}, PoolSpecs}}.

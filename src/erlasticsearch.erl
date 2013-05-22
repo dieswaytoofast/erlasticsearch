@@ -18,8 +18,13 @@
 
 %% API
 -export([start/0, start/1]).
--export([start_link/0, start_link/1]).
--export([stop/1]).
+-export([stop/0, stop/1]).
+-export([start_link/1, start_link/2]).
+-export([stop_client/1]).
+-export([start_client/1, start_client/2]).
+-export([registered_name/1]).
+-export([get_target/1]).
+-export([get_env/2, set_env/2]).
 
 %% ElasticSearch
 % Tests
@@ -35,7 +40,7 @@
 
 % Index CRUD
 -export([create_index/2, create_index/3]).
--export([delete_index/2]).
+-export([delete_index/1, delete_index/2]).
 -export([open_index/2]).
 -export([close_index/2]).
 
@@ -64,36 +69,68 @@
 
 -define(APP, ?MODULE).
 
--record(state, {connection :: connection()}).
+-record(state, {
+        client_name     :: client_name(),
+        connection      :: connection()}).
 
 %% ------------------------------------------------------------------
 %% API
 %% ------------------------------------------------------------------
 
-%% @equiv start([]).
--spec start() -> {ok, pid()}.
+%% @doc Start the application and all its dependencies.
+-spec start() -> ok.
 start() ->
-    start([]).
+    d_util:start_deps(?APP).
 
+%% @doc To start up a 'simple' client
 -spec start(params()) -> {ok, pid()}.
 start(Options) when is_list(Options) ->
     gen_server:start(?MODULE, [Options], []).
 
-start_link() ->
-    start_link([]).
+%% @doc Stop the application and all its dependencies.
+-spec stop() -> ok.
+stop() ->
+    d_util:stop_deps(?APP).
 
-start_link(Options) ->
-    gen_server:start_link(?MODULE, [Options], []).
-
-%% @doc Stop a client
+%% @doc Stop this gen_server
 -spec stop(server_ref()) -> ok | error().
 stop(ServerRef) ->
     gen_server:call(ServerRef, {stop}, infinity).
 
+
+%% @doc Used by Poolboy, to start 'unregistered' gen_servers
+start_link(StartOptions) ->
+    gen_server:start_link(?MODULE, [?DEFAULT_CLIENT_NAME, StartOptions], []).
+
+start_link(ClientName, StartOptions) ->
+    lager:debug("Starting:~p~n", [{ClientName, StartOptions}]),
+    gen_server:start_link({local, registered_name(ClientName)}, ?MODULE, [ClientName, StartOptions], []).
+
+%% @doc Name used to register the client process
+-spec registered_name(client_name()) -> registered_name().
+registered_name(ClientName) ->
+    binary_to_atom(<<?REGISTERED_NAME_PREFIX, ClientName/binary, ".client">>, utf8).
+
+%% @equiv start_client(ClientName, []).
+-spec start_client(client_name()) -> supervisor:startchild_ret().
+start_client(ClientName) when is_binary(ClientName) ->
+    start_client(ClientName, []).
+
+%% @doc Start a client process
+-spec start_client(client_name(), params()) -> supervisor:startchild_ret().
+start_client(ClientName, Options) when is_binary(ClientName),
+                                       is_list(Options) ->
+    erlasticsearch_client_sup:start_client(ClientName, Options).
+
+%% @doc Stop a client process
+-spec stop_client(client_name()) -> ok | error().
+stop_client(ClientName) ->
+    erlasticsearch_client_sup:stop_client(ClientName).
+
 %% @doc Get the health the  ElasticSearch cluster
 -spec health(server_ref()) -> response().
 health(ServerRef) ->
-    gen_server:call(ServerRef, {health}, infinity).
+    route_call(ServerRef, {health}, infinity).
 
 %% @equiv state(ServerRef, []).
 -spec state(server_ref()) -> response().
@@ -103,7 +140,7 @@ state(ServerRef) ->
 %% @doc Get the state of the  ElasticSearch cluster
 -spec state(server_ref(), params()) -> response().
 state(ServerRef, Params) ->
-    gen_server:call(ServerRef, {state, Params}, infinity).
+    route_call(ServerRef, {state, Params}, infinity).
 
 %% @equiv nodes_info(ServerRef, [], []).
 -spec nodes_info(server_ref()) -> response().
@@ -121,7 +158,7 @@ nodes_info(ServerRef, NodeNames) when is_list(NodeNames) ->
 %% @doc Get the nodes_info of the  ElasticSearch cluster
 -spec nodes_info(server_ref(), [node_name()], params()) -> response().
 nodes_info(ServerRef, NodeNames, Params) ->
-    gen_server:call(ServerRef, {nodes_info, NodeNames, Params}, infinity).
+    route_call(ServerRef, {nodes_info, NodeNames, Params}, infinity).
 
 %% @equiv nodes_stats(ServerRef, [], []).
 -spec nodes_stats(server_ref()) -> response().
@@ -139,14 +176,14 @@ nodes_stats(ServerRef, NodeNames) when is_list(NodeNames) ->
 %% @doc Get the nodes_stats of the  ElasticSearch cluster
 -spec nodes_stats(server_ref(), [node_name()], params()) -> response().
 nodes_stats(ServerRef, NodeNames, Params) ->
-    gen_server:call(ServerRef, {nodes_stats, NodeNames, Params}, infinity).
+    route_call(ServerRef, {nodes_stats, NodeNames, Params}, infinity).
 
 %% @doc Get the status of an index/indices in the  ElasticSearch cluster
 -spec status(server_ref(), index() | [index()]) -> response().
 status(ServerRef, Index) when is_binary(Index) ->
     status(ServerRef, [Index]);
 status(ServerRef, Indexes) when is_list(Indexes)->
-    gen_server:call(ServerRef, {status, Indexes}, infinity).
+    route_call(ServerRef, {status, Indexes}, infinity).
 
 %% @equiv create_index(ServerRef, Index, <<>>)
 -spec create_index(server_ref(), index()) -> response().
@@ -156,29 +193,36 @@ create_index(ServerRef, Index) ->
 %% @doc Create an index in the ElasticSearch cluster
 -spec create_index(server_ref(), index(), doc()) -> response().
 create_index(ServerRef, Index, Doc) ->
-    gen_server:call(ServerRef, {create_index, Index, Doc}, infinity).
+    route_call(ServerRef, {create_index, Index, Doc}, infinity).
 
-%% @doc Delete an index in the ElasticSearch cluster
--spec delete_index(server_ref(), index()) -> response().
-delete_index(ServerRef, Index) ->
-    gen_server:call(ServerRef, {delete_index, Index}, infinity).
+%% @doc Delete all the indices in the ElasticSearch cluster
+-spec delete_index(server_ref()) -> response().
+delete_index(ServerRef) ->
+    delete_index(ServerRef, ?ALL).
+
+%% @doc Delete an index(es) in the ElasticSearch cluster
+-spec delete_index(server_ref(), index() | [index()]) -> response().
+delete_index(ServerRef, Index) when is_binary(Index) ->
+    delete_index(ServerRef, [Index]);
+delete_index(ServerRef, Index) when is_list(Index) ->
+    route_call(ServerRef, {delete_index, Index}, infinity).
 
 %% @doc Open an index in the ElasticSearch cluster
 -spec open_index(server_ref(), index()) -> response().
 open_index(ServerRef, Index) ->
-    gen_server:call(ServerRef, {open_index, Index}, infinity).
+    route_call(ServerRef, {open_index, Index}, infinity).
 
 %% @doc Close an index in the ElasticSearch cluster
 -spec close_index(server_ref(), index()) -> response().
 close_index(ServerRef, Index) ->
-    gen_server:call(ServerRef, {close_index, Index}, infinity).
+    route_call(ServerRef, {close_index, Index}, infinity).
 
 %% @doc Check if an index/indices exists in the ElasticSearch cluster
 -spec is_index(server_ref(), index() | [index()]) -> boolean().
 is_index(ServerRef, Index) when is_binary(Index) ->
     is_index(ServerRef, [Index]);
 is_index(ServerRef, Indexes) when is_list(Indexes) ->
-    gen_server:call(ServerRef, {is_index, Indexes}, infinity).
+    route_call(ServerRef, {is_index, Indexes}, infinity).
 
 %% @equiv count(ServerRef, ?ALL, [], Doc []).
 -spec count(server_ref(), doc()) -> boolean().
@@ -206,7 +250,7 @@ count(ServerRef, Indexes, Type, Doc, Params) when is_list(Indexes), is_binary(Ty
 count(ServerRef, Index, Types, Doc, Params) when is_binary(Index), is_list(Types), is_binary(Doc), is_list(Params) ->
     count(ServerRef, [Index], Types, Doc, Params);
 count(ServerRef, Indexes, Types, Doc, Params) when is_list(Indexes), is_list(Types), is_binary(Doc), is_list(Params) ->
-    gen_server:call(ServerRef, {count, Indexes, Types, Doc, Params}, infinity).
+    route_call(ServerRef, {count, Indexes, Types, Doc, Params}, infinity).
 
 %% @equiv delete_by_query(ServerRef, ?ALL, [], Doc []).
 -spec delete_by_query(server_ref(), doc()) -> boolean().
@@ -234,7 +278,7 @@ delete_by_query(ServerRef, Indexes, Type, Doc, Params) when is_list(Indexes), is
 delete_by_query(ServerRef, Index, Types, Doc, Params) when is_binary(Index), is_list(Types), is_binary(Doc), is_list(Params) ->
     delete_by_query(ServerRef, [Index], Types, Doc, Params);
 delete_by_query(ServerRef, Indexes, Types, Doc, Params) when is_list(Indexes), is_list(Types), is_binary(Doc), is_list(Params) ->
-    gen_server:call(ServerRef, {delete_by_query, Indexes, Types, Doc, Params}, infinity).
+    route_call(ServerRef, {delete_by_query, Indexes, Types, Doc, Params}, infinity).
 
 %% @doc Check if a type exists in an index/indices in the ElasticSearch cluster
 -spec is_type(server_ref(), index() | [index()], type() | [type()]) -> boolean().
@@ -245,7 +289,7 @@ is_type(ServerRef, Indexes, Type) when is_list(Indexes), is_binary(Type) ->
 is_type(ServerRef, Index, Types) when is_binary(Index), is_list(Types) ->
     is_type(ServerRef, [Index], Types);
 is_type(ServerRef, Indexes, Types) when is_list(Indexes), is_list(Types) ->
-    gen_server:call(ServerRef, {is_type, Indexes, Types}, infinity).
+    route_call(ServerRef, {is_type, Indexes, Types}, infinity).
 
 %% @equiv insert_doc(Index, Type, Id, Doc, []).
 -spec insert_doc(server_ref(), index(), type(), id(), doc()) -> response().
@@ -255,12 +299,12 @@ insert_doc(ServerRef, Index, Type, Id, Doc) ->
 %% @doc Insert a doc into the ElasticSearch cluster
 -spec insert_doc(server_ref(), index(), type(), id(), doc(), params()) -> response().
 insert_doc(ServerRef, Index, Type, Id, Doc, Params) ->
-    gen_server:call(ServerRef, {insert_doc, Index, Type, Id, Doc, Params}, infinity).
+    route_call(ServerRef, {insert_doc, Index, Type, Id, Doc, Params}, infinity).
 
 %% @doc Checks to see if the doc exists
 -spec is_doc(server_ref(), index(), type(), id()) -> response().
 is_doc(ServerRef, Index, Type, Id) ->
-    gen_server:call(ServerRef, {is_doc, Index, Type, Id}, infinity).
+    route_call(ServerRef, {is_doc, Index, Type, Id}, infinity).
 
 %% @equiv get_doc(ServerRef, Index, Type, Id, []).
 -spec get_doc(server_ref(), index(), type(), id()) -> response().
@@ -270,7 +314,7 @@ get_doc(ServerRef, Index, Type, Id) ->
 %% @doc Get a doc from the ElasticSearch cluster
 -spec get_doc(server_ref(), index(), type(), id(), params()) -> response().
 get_doc(ServerRef, Index, Type, Id, Params) ->
-    gen_server:call(ServerRef, {get_doc, Index, Type, Id, Params}, infinity).
+    route_call(ServerRef, {get_doc, Index, Type, Id, Params}, infinity).
 
 %% @equiv mget_doc(ServerRef, <<>>, <<>>, Doc)
 -spec mget_doc(server_ref(), doc()) -> response().
@@ -285,7 +329,7 @@ mget_doc(ServerRef, Index, Doc) ->
 %% @doc Get a doc from the ElasticSearch cluster
 -spec mget_doc(server_ref(), index(), type(), doc()) -> response().
 mget_doc(ServerRef, Index, Type, Doc) ->
-    gen_server:call(ServerRef, {mget_doc, Index, Type, Doc}, infinity).
+    route_call(ServerRef, {mget_doc, Index, Type, Doc}, infinity).
 
 %% @equiv delete_doc(ServerRef, Index, Type, Id, []).
 -spec delete_doc(server_ref(), index(), type(), id()) -> response().
@@ -294,7 +338,7 @@ delete_doc(ServerRef, Index, Type, Id) ->
 %% @doc Delete a doc from the ElasticSearch cluster
 -spec delete_doc(server_ref(), index(), type(), id(), params()) -> response().
 delete_doc(ServerRef, Index, Type, Id, Params) ->
-    gen_server:call(ServerRef, {delete_doc, Index, Type, Id, Params}, infinity).
+    route_call(ServerRef, {delete_doc, Index, Type, Id, Params}, infinity).
 
 %% @equiv search(ServerRef, Index, Type, Doc, []).
 -spec search(server_ref(), index(), type(), doc()) -> response().
@@ -303,7 +347,7 @@ search(ServerRef, Index, Type, Doc) ->
 %% @doc Search for docs in the ElasticSearch cluster
 -spec search(server_ref(), index(), type(), doc(), params()) -> response().
 search(ServerRef, Index, Type, Doc, Params) ->
-    gen_server:call(ServerRef, {search, Index, Type, Doc, Params}, infinity).
+    route_call(ServerRef, {search, Index, Type, Doc, Params}, infinity).
 
 %% @equiv refresh(ServerRef, ?ALL).
 %% @doc Refresh all indices
@@ -316,7 +360,7 @@ refresh(ServerRef) ->
 refresh(ServerRef, Index) when is_binary(Index) ->
     refresh(ServerRef, [Index]);
 refresh(ServerRef, Indexes) when is_list(Indexes) ->
-    gen_server:call(ServerRef, {refresh, Indexes}, infinity).
+    route_call(ServerRef, {refresh, Indexes}, infinity).
 
 %% @doc Flush all indices
 %% @equiv flush(ServerRef, ?ALL).
@@ -329,7 +373,7 @@ flush(ServerRef) ->
 flush(ServerRef, Index) when is_binary(Index) ->
     flush(ServerRef, [Index]);
 flush(ServerRef, Indexes) when is_list(Indexes) ->
-    gen_server:call(ServerRef, {flush, Indexes}, infinity).
+    route_call(ServerRef, {flush, Indexes}, infinity).
 
 %% @equiv optimize(ServerRef, ?ALL).
 %% @doc Optimize all indices
@@ -342,7 +386,7 @@ optimize(ServerRef) ->
 optimize(ServerRef, Index) when is_binary(Index) ->
     optimize(ServerRef, [Index]);
 optimize(ServerRef, Indexes) when is_list(Indexes) ->
-    gen_server:call(ServerRef, {optimize, Indexes}, infinity).
+    route_call(ServerRef, {optimize, Indexes}, infinity).
 
 %% @equiv segments(ServerRef, ?ALL).
 %% @doc Optimize all indices
@@ -355,7 +399,7 @@ segments(ServerRef) ->
 segments(ServerRef, Index) when is_binary(Index) ->
     segments(ServerRef, [Index]);
 segments(ServerRef, Indexes) when is_list(Indexes) ->
-    gen_server:call(ServerRef, {segments, Indexes}, infinity).
+    route_call(ServerRef, {segments, Indexes}, infinity).
 
 %% @equiv clear_cache(ServerRef, ?ALL, []).
 %% @doc Clear all the caches
@@ -375,15 +419,16 @@ clear_cache(ServerRef, Indexes) when is_list(Indexes) ->
 clear_cache(ServerRef, Index, Params) when is_binary(Index), is_list(Params) ->
     clear_cache(ServerRef, [Index], Params);
 clear_cache(ServerRef, Indexes, Params) when is_list(Indexes), is_list(Params) ->
-    gen_server:call(ServerRef, {clear_cache, Indexes, Params}, infinity).
+    route_call(ServerRef, {clear_cache, Indexes, Params}, infinity).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
-init([Options]) ->
-    Connection = connection(Options),
-    {ok, #state{connection = Connection}}.
+init([ClientName, StartOptions]) ->
+    Connection = connection(StartOptions),
+    {ok, #state{client_name = ClientName, 
+                connection = Connection}}.
 
 handle_call({stop}, _From, State) ->
     {stop, normal, ok, State};
@@ -539,6 +584,11 @@ connection(StartOptions) ->
     ThriftPort = get_env(thrift_port, ?DEFAULT_THRIFT_PORT),
     {ok, Connection} = thrift_client_util:new(ThriftHost, ThriftPort, elasticsearch_thrift, StartOptions),
     Connection.
+
+%% @doc Sets the value of the configuration parameter Key for this application.
+-spec set_env(Key :: atom(), Value :: term()) -> ok.
+set_env(Key, Value) ->
+    application:set_env(?APP, Key, Value).
 
 %% @doc Process the request over thrift
 -spec process_request(connection(), request()) -> {connection(), response()}.
@@ -759,3 +809,22 @@ is_200_or_201({ok, Response}) ->
 -spec decode_response(response()) -> any().
 decode_response({ok, {_,_,_,Json}}) ->
     jsx:decode(Json).
+
+%% @doc Send the request to either poolboy, or the gen_server
+-spec route_call({pool, pool_name()} | server_ref(), tuple(), timeout()) -> response().
+route_call({pool, PoolName}, Arguments, Timeout) ->
+    poolboy:transaction(PoolName, fun(Worker) ->
+                gen_server:call(Worker, Arguments, Timeout)
+        end);
+route_call(ServerRef, Arguments, Timeout) ->
+    gen_server:call(get_target(ServerRef), Arguments, Timeout).
+    
+%% @doc Get the target for the server_ref
+-spec get_target(server_ref()) -> target().
+get_target(ServerRef) when is_pid(ServerRef) ->
+    ServerRef;
+get_target(ServerRef) when is_atom(ServerRef) ->
+    ServerRef;
+get_target(ClientName) when is_binary(ClientName) ->
+    whereis(registered_name(ClientName)).
+

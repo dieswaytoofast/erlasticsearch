@@ -1,4 +1,16 @@
+%%%-------------------------------------------------------------------
+%%% @author Mahesh Paolini-Subramanya <mahesh@dieswaytoofast.com>
+%%% @copyright (C) 2013 Mahesh Paolini-Subramanya, Paul Oliver
+%%% @doc type definitions and records.
+%%% @end
+%%%
+%%% This source file is subject to the New BSD License. You should have received
+%%% a copy of the New BSD license with this software. If not, it can be
+%%% retrieved from: http://www.opensource.org/licenses/bsd-license.php
+%%%-------------------------------------------------------------------
 -module(erlasticsearch_poolboy_worker).
+-author('Mahesh Paolini-Subramanya <mahesh@dieswaytoofast.com>').
+-author('Paul Oliver <puzza007@gmail.com>').
 
 -behaviour(gen_server).
 -behaviour(poolboy_worker).
@@ -53,9 +65,11 @@ handle_cast(_Msg, State) ->
     {stop, unhandled_cast, State}.
 
 handle_info(_Info, State) ->
+    lager:debug("_Info:~p~n", [_Info]),
     {stop, unhandled_info, State}.
 
 terminate(_Reason, #state{worker=Worker}) ->
+    lager:debug("_Reason:~p~n", [_Reason]),
     ok = erlasticsearch:stop(Worker),
     ok.
 

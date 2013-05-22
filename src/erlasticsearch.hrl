@@ -25,12 +25,14 @@
 -type doc()             :: binary().
 -type params()          :: [tuple()].
 -type client_name()     :: binary().
+-type pool_name()       :: atom().
 -type registered_name() :: atom().
--type server_ref()      :: atom() | pid().
+-type server_ref()      :: atom() | pid() | client_name().
 -type target()          :: atom() | pid().
 
 
 %% Defaults
+-define(DEFAULT_CLIENT_NAME, <<"undefined">>).
 -define(DEFAULT_THRIFT_HOST, "localhost").
 -define(DEFAULT_THRIFT_PORT, 9500).
 -define(DEFAULT_THRIFT_OPTIONS, []).
