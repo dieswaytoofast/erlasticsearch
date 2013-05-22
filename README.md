@@ -54,7 +54,7 @@ Details
 1. erlasticsearch includes a poolboy module which starts up a pool as specified in the application environment variable _pools_.  See [poolboy](https://github.com/devinus/poolboy/blob/master/README.md) for how to configure a pool.  The default pool has 10 clients and is called _erlasticsearch_pool_.  You can run functions on this pool by using the _erlasticsearch_poolboy_ module functions.
 1. The thrift client is in the form of a _gen_server_ process (a _gen_server_).  You can start a client process as follows
 	* ```{ok, Pid} = erlasticsearch:start_link().```
-1. Any JSON expected by ElasticSearch will need to go in as JSON
+1. Any JSON expected by ElasticSearch will need to go in as a binary
    * For example --> ```<<"{\"settings\":{\"number_of_shards\":3}}">>```
 1. Output returned by most everything is in the form ```{ok, #restResponse{}} | error()```
    * See the format of ```#restResponse{}``` [here](https://github.com/dieswaytoofast/erlasticsearch/blob/master/src/elasticsearch_types.hrl).
@@ -455,5 +455,7 @@ erlasticsearch@pecorino)13> erlasticsearch:nodes_stats(Pid, [<<"node1">>], [{pro
 Credits
 =======
 This is _not_ to be confused with [erlastic_search](https://github.com/tsloughter/erlastic_search) by [Tristan Sloughter](https://github.com/tsloughter), which is HTTP/REST based, and almost certainly did not involve quite this level of head-thumping associated w/ figuring out how Thrift works…
+
+And, of course, props to [Paul Oliver](https://github.com/puzza007) for getting poolboy in the mix
 
 (Yes, this is a _Credit_)

@@ -27,7 +27,7 @@
 
 % Index CRUD
 -export([create_index/2, create_index/3]).
--export([delete_index/2]).
+-export([delete_index/1, delete_index/2]).
 -export([open_index/2]).
 -export([close_index/2]).
 
@@ -130,9 +130,16 @@ create_index(PoolName, Index, Doc) ->
         gen_server:call(Worker, {create_index, Index, Doc}, infinity)
     end).
 
+%% @doc Delete all the  indices in the ElasticSearch cluster
+-spec delete_index(atom()) -> response().
+delete_index(PoolName) ->
+    delete_index(PoolName, ?ALL).
+
 %% @doc Delete an index in the ElasticSearch cluster
--spec delete_index(atom(), index()) -> response().
-delete_index(PoolName, Index) ->
+-spec delete_index(atom(), [index() | [index()]]) -> response().
+delete_index(PoolName, Index) when is_binary(Index) ->
+    delete_index(PoolName, [Index]);
+delete_index(PoolName, Index) when is_list(Index) ->
     poolboy:transaction(PoolName, fun(Worker) ->
         gen_server:call(Worker, {delete_index, Index}, infinity)
     end).

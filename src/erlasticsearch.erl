@@ -581,9 +581,10 @@ rest_request_create_index(Index, Doc) when is_binary(Index),
                  uri = Index,
                  body = Doc}.
 
-rest_request_delete_index(Index) when is_binary(Index) ->
+rest_request_delete_index(Index) when is_list(Index) ->
+    IndexList = bstr:join(Index, <<",">>),
     #restRequest{method = ?elasticsearch_Method_DELETE,
-                 uri = Index}.
+                 uri = IndexList}.
 
 rest_request_open_index(Index) when is_binary(Index) ->
     Uri = bstr:join([Index, ?OPEN], <<"/">>),
