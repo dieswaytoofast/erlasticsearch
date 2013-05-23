@@ -811,7 +811,7 @@ decode_response({ok, {_,_,_,Json}}) ->
     jsx:decode(Json).
 
 %% @doc Send the request to either poolboy, or the gen_server
--spec route_call({pool, pool_name()} | server_ref(), tuple(), timeout()) -> response().
+-spec route_call(server_ref(), tuple(), timeout()) -> response().
 route_call({pool, PoolName}, Arguments, Timeout) ->
     poolboy:transaction(PoolName, fun(Worker) ->
                 gen_server:call(Worker, Arguments, Timeout)

@@ -15,7 +15,7 @@
 
 -type error()           :: {error, Reason :: term()}.
 -type method()          :: atom().
--type response()        :: {ok, #restResponse{}} | error().
+-type response()        :: {ok, #restResponse{}} | boolean() | error().
 -type request()         :: #restRequest{}.
 -type connection()      :: any().
 -type node_name()       :: binary().
@@ -27,7 +27,7 @@
 -type client_name()     :: binary().
 -type pool_name()       :: atom().
 -type registered_name() :: atom().
--type server_ref()      :: atom() | pid() | client_name().
+-type server_ref()      :: atom() | pid() | client_name() | {pool, pool_name()}.
 -type target()          :: atom() | pid().
 
 
