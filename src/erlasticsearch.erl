@@ -21,8 +21,11 @@
 -export([stop/0, stop/1]).
 -export([start_link/1, start_link/2]).
 -export([stop_client/1]).
+-export([stop_pool/1]).
 -export([start_client/1, start_client/2]).
--export([registered_name/1]).
+-export([start_pool/1, start_pool/2, start_pool/3]).
+-export([registered_pool_name/1]).
+-export([registered_client_name/1]).
 -export([get_target/1]).
 -export([get_env/2, set_env/2]).
 
@@ -99,17 +102,22 @@ stop(ServerRef) ->
 
 
 %% @doc Used by Poolboy, to start 'unregistered' gen_servers
-start_link(StartOptions) ->
-    gen_server:start_link(?MODULE, [?DEFAULT_CLIENT_NAME, StartOptions], []).
+start_link(ConnectionOptions) ->
+    gen_server:start_link(?MODULE, [?DEFAULT_CLIENT_NAME, ConnectionOptions], []).
 
-start_link(ClientName, StartOptions) ->
-    lager:debug("Starting:~p~n", [{ClientName, StartOptions}]),
-    gen_server:start_link({local, registered_name(ClientName)}, ?MODULE, [ClientName, StartOptions], []).
+start_link(ClientName, ConnectionOptions) ->
+    lager:debug("Starting:~p~n", [{ClientName, ConnectionOptions}]),
+    gen_server:start_link({local, registered_client_name(ClientName)}, ?MODULE, [ClientName, ConnectionOptions], []).
 
 %% @doc Name used to register the client process
--spec registered_name(client_name()) -> registered_name().
-registered_name(ClientName) ->
+-spec registered_client_name(client_name()) -> registered_client_name().
+registered_client_name(ClientName) ->
     binary_to_atom(<<?REGISTERED_NAME_PREFIX, ClientName/binary, ".client">>, utf8).
+
+%% @doc Name used to register the pool server
+-spec registered_pool_name(pool_name()) -> registered_pool_name().
+registered_pool_name(PoolName) ->
+    binary_to_atom(<<?REGISTERED_NAME_PREFIX, PoolName/binary, ".pool">>, utf8).
 
 %% @equiv start_client(ClientName, []).
 -spec start_client(client_name()) -> supervisor:startchild_ret().
@@ -126,6 +134,33 @@ start_client(ClientName, Options) when is_binary(ClientName),
 -spec stop_client(client_name()) -> ok | error().
 stop_client(ClientName) ->
     erlasticsearch_client_sup:stop_client(ClientName).
+
+%% @doc Start a poolboy instance
+-spec start_pool(pool_name()) -> supervisor:startchild_ret().
+start_pool(PoolName) when is_binary(PoolName) ->
+    PoolOptions = erlasticsearch:get_env(pool_options, ?DEFAULT_POOL_OPTIONS),
+    ConnectionOptions = erlasticsearch:get_env(connection_options, ?DEFAULT_CONNECTION_OPTIONS),
+    start_pool(PoolName, PoolOptions, ConnectionOptions).
+
+%% @doc Start a poolboy instance
+-spec start_pool(pool_name(), params()) -> supervisor:startchild_ret().
+start_pool(PoolName, PoolOptions) when is_binary(PoolName),
+                                       is_list(PoolOptions) ->
+    ConnectionOptions = erlasticsearch:get_env(connection_options, ?DEFAULT_CONNECTION_OPTIONS),
+    start_pool(PoolName, PoolOptions, ConnectionOptions).
+
+%% @doc Start a poolboy instance with appropriate Pool & Conn settings
+-spec start_pool(pool_name(), params(), params()) -> supervisor:startchild_ret().
+start_pool(PoolName, PoolOptions, ConnectionOptions) when is_binary(PoolName),
+                                                      is_list(PoolOptions),
+                                                      is_list(ConnectionOptions) ->
+    erlasticsearch_poolboy_sup:start_pool(PoolName, PoolOptions, ConnectionOptions).
+
+%% @doc Stop a poolboy instance
+-spec stop_pool(pool_name()) -> ok | error().
+stop_pool(PoolName) ->
+    erlasticsearch_poolboy_sup:stop_pool(PoolName).
+%%
 
 %% @doc Get the health the  ElasticSearch cluster
 -spec health(server_ref()) -> response().
@@ -425,8 +460,8 @@ clear_cache(ServerRef, Indexes, Params) when is_list(Indexes), is_list(Params) -
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
-init([ClientName, StartOptions]) ->
-    Connection = connection(StartOptions),
+init([ClientName, ConnectionOptions]) ->
+    Connection = connection(ConnectionOptions),
     {ok, #state{client_name = ClientName, 
                 connection = Connection}}.
 
@@ -579,11 +614,23 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% @doc Build a new connection
 -spec connection(params()) -> connection().
-connection(StartOptions) ->
-    ThriftHost = get_env(thrift_host, ?DEFAULT_THRIFT_HOST),
-    ThriftPort = get_env(thrift_port, ?DEFAULT_THRIFT_PORT),
-    {ok, Connection} = thrift_client_util:new(ThriftHost, ThriftPort, elasticsearch_thrift, StartOptions),
+connection(ConnectionOptions) ->
+    ThriftHost = proplists:get_value(thrift_host, ConnectionOptions, ?DEFAULT_THRIFT_HOST),
+    ThriftPort = proplists:get_value(thrift_port, ConnectionOptions, ?DEFAULT_THRIFT_PORT),
+    RemainingOptions = clean_options(ConnectionOptions),
+    {ok, Connection} = thrift_client_util:new(ThriftHost, ThriftPort, elasticsearch_thrift, RemainingOptions),
     Connection.
+
+clean_options(Options) ->
+    clean_options(Options, []).
+clean_options([], Acc) -> Acc;
+clean_options([{thrift_host, _} | Tail], Acc) -> 
+    clean_options(Tail, Acc);
+clean_options([{thrift_port, _} | Tail], Acc) -> 
+    clean_options(Tail, Acc);
+clean_options([Head | Tail], [Head |Acc]) -> 
+    clean_options(Tail, Acc).
+
 
 %% @doc Sets the value of the configuration parameter Key for this application.
 -spec set_env(Key :: atom(), Value :: term()) -> ok.
@@ -813,7 +860,8 @@ decode_response({ok, {_,_,_,Json}}) ->
 %% @doc Send the request to either poolboy, or the gen_server
 -spec route_call(server_ref(), tuple(), timeout()) -> response().
 route_call({pool, PoolName}, Arguments, Timeout) ->
-    poolboy:transaction(PoolName, fun(Worker) ->
+    PoolId = registered_pool_name(PoolName),
+    poolboy:transaction(PoolId, fun(Worker) ->
                 gen_server:call(Worker, Arguments, Timeout)
         end);
 route_call(ServerRef, Arguments, Timeout) ->
@@ -826,5 +874,5 @@ get_target(ServerRef) when is_pid(ServerRef) ->
 get_target(ServerRef) when is_atom(ServerRef) ->
     ServerRef;
 get_target(ClientName) when is_binary(ClientName) ->
-    whereis(registered_name(ClientName)).
+    whereis(registered_client_name(ClientName)).
 

@@ -49,7 +49,7 @@ start_client(ClientName, Options) when is_binary(ClientName),
 
 -spec stop_client(client_name()) -> ok | error().
 stop_client(ClientName) ->
-    ChildName = erlasticsearch:registered_name(ClientName),
+    ChildName = erlasticsearch:registered_client_name(ClientName),
     supervisor:terminate_child(?SERVER, whereis(ChildName)).
 
 -spec init(Args :: term()) -> {ok, {{RestartStrategy :: supervisor:strategy(), MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},

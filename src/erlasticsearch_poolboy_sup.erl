@@ -17,6 +17,8 @@
 
 %% API
 -export([start_link/0]).
+-export([start_pool/3]).
+-export([stop_pool/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -33,18 +35,41 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
+-spec start_pool(pool_name(), params(), params()) -> supervisor:startchild_ret().
+start_pool(PoolName, PoolOptions, ConnectionOptions) when is_binary(PoolName),
+                                                          is_list(PoolOptions),
+                                                          is_list(ConnectionOptions) ->
+    PoolSpec = pool_spec(PoolName, PoolOptions, ConnectionOptions),
+    supervisor:start_child(?SERVER, PoolSpec).
+
+
+-spec stop_pool(pool_name()) -> ok | error().
+stop_pool(PoolName) ->
+    PoolId = erlasticsearch:registered_pool_name(PoolName),
+    supervisor:terminate_child(?SERVER, PoolId),
+    supervisor:delete_child(?SERVER, PoolId).
+
 
 -spec init(Args :: term()) -> {ok, {{RestartStrategy :: supervisor:strategy(), MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},
                                     [ChildSpec :: supervisor:child_spec()]}}.
 init([]) ->
-    {ok, Pools} = application:get_env(erlasticsearch, pools),
-    PoolSpecs =
-        lists:map(
-          fun({Name, SizeArgs, WorkerArgs}) ->
-                  PoolArgs =
-                      [{name, {local, Name}},
-                       {worker_module, erlasticsearch_poolboy_worker}] ++ SizeArgs,
-                  poolboy:child_spec(Name, PoolArgs, WorkerArgs)
-          end,
-          Pools),
-    {ok, {{one_for_one, 10, 10}, PoolSpecs}}.
+    RestartStrategy = one_for_one,
+    MaxRestarts = 10,
+    MaxSecondsBetweenRestarts = 10,
+
+    SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
+
+    PoolName = erlasticsearch:get_env(pool_name, ?DEFAULT_POOL_NAME),
+    PoolOptions = erlasticsearch:get_env(pool_options, ?DEFAULT_POOL_OPTIONS),
+    ConnectionOptions = erlasticsearch:get_env(connection_options, ?DEFAULT_CONNECTION_OPTIONS),
+    PoolSpecs = pool_spec(PoolName, PoolOptions, ConnectionOptions),
+    {ok, {SupFlags, [PoolSpecs]}}.
+
+
+-spec pool_spec(pool_name(), params(), params()) -> supervisor:child_spec().
+pool_spec(PoolName, PoolOptions, ConnectionOptions) ->
+    PoolId = erlasticsearch:registered_pool_name(PoolName),
+    PoolArgs = [{name, {local, PoolId}},
+                {worker_module, erlasticsearch_poolboy_worker}] ++ PoolOptions,
+    poolboy:child_spec(PoolId, PoolArgs, ConnectionOptions).
+

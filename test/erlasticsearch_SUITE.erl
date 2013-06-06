@@ -19,10 +19,6 @@
 -define(CHECKSPEC(M,F,N), true = proper:check_spec({M,F,N})).
 -define(PROPTEST(A), true = proper:quickcheck(A())).
 
--define(DEFAULT_POOL, erlasticsearch_pool).
--define(DEFAULT_POOL_SIZE, 5).
--define(DEFAULT_POOL_OVERFLOW, 10).
-
 -define(NUMTESTS, 500).
 -define(DOCUMENT_DEPTH, 5).
 -define(THREE_SHARDS, <<"{\"settings\":{\"number_of_shards\":3}}">>).
@@ -41,8 +37,10 @@ end_per_suite(_Config) ->
 
 init_per_group(_GroupName, Config0) ->
     ClientName = random_name(<<"client_">>),
+    PoolName = random_name(<<"pool_">>),
     Config1 = [{client_name, ClientName},
-               {pool, {pool, ?DEFAULT_POOL}} | Config0],
+               {pool_name, PoolName},
+               {pool, {pool, PoolName}} | Config0],
     start(Config1),
 
 
@@ -148,8 +146,8 @@ all() ->
 
 t_health(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_health(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_health(Pool, Config),
     process_t_health(ClientName, Config).
 
 process_t_health(ServerRef, _Config) ->
@@ -158,8 +156,8 @@ process_t_health(ServerRef, _Config) ->
 
 t_state(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_state(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_state(Pool, Config),
     process_t_state(ClientName, Config).
 
 process_t_state(ServerRef, _Config) ->
@@ -170,8 +168,8 @@ process_t_state(ServerRef, _Config) ->
 
 t_nodes_info(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_nodes_info(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_nodes_info(Pool, Config),
     process_t_nodes_info(ClientName, Config).
 
 process_t_nodes_info(ServerRef, _Config) ->
@@ -180,8 +178,8 @@ process_t_nodes_info(ServerRef, _Config) ->
 
 t_nodes_stats(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_nodes_stats(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_nodes_stats(Pool, Config),
     process_t_nodes_stats(ClientName, Config).
 
 process_t_nodes_stats(ServerRef, _Config) ->
@@ -190,8 +188,8 @@ process_t_nodes_stats(ServerRef, _Config) ->
 
 t_status_1(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_status_1(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_status_1(Pool, Config),
     process_t_status_1(ClientName, Config).
 
 process_t_status_1(ServerRef, Config) ->
@@ -202,8 +200,8 @@ process_t_status_1(ServerRef, Config) ->
 
 t_status_all(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_status_all(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_status_all(Pool, Config),
     process_t_status_all(ClientName, Config).
 
 process_t_status_all(ServerRef, Config) ->
@@ -214,8 +212,8 @@ process_t_status_all(ServerRef, Config) ->
 
 t_clear_cache_1(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_clear_cache_1(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_clear_cache_1(Pool, Config),
     process_t_clear_cache_1(ClientName, Config).
 
 process_t_clear_cache_1(ServerRef, Config) ->
@@ -226,8 +224,8 @@ process_t_clear_cache_1(ServerRef, Config) ->
 
 t_clear_cache_list(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_clear_cache_list(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_clear_cache_list(Pool, Config),
     process_t_clear_cache_list(ClientName, Config).
 
 process_t_clear_cache_list(ServerRef, Config) ->
@@ -238,8 +236,8 @@ process_t_clear_cache_list(ServerRef, Config) ->
 
 t_clear_cache_all(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_clear_cache_all(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_clear_cache_all(Pool, Config),
     process_t_clear_cache_all(ClientName, Config).
 
 process_t_clear_cache_all(ServerRef, Config) ->
@@ -250,8 +248,8 @@ process_t_clear_cache_all(ServerRef, Config) ->
 
 t_is_index_1(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_is_index_1(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_is_index_1(Pool, Config),
     process_t_is_index_1(ClientName, Config).
 
 process_t_is_index_1(ServerRef, Config) ->
@@ -262,8 +260,8 @@ process_t_is_index_1(ServerRef, Config) ->
 
 t_is_index_all(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_is_index_all(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_is_index_all(Pool, Config),
     process_t_is_index_all(ClientName, Config).
 
 process_t_is_index_all(ServerRef, Config) ->
@@ -274,8 +272,8 @@ process_t_is_index_all(ServerRef, Config) ->
 
 t_is_type_1(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_is_type_1(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_is_type_1(Pool, Config),
     process_t_is_type_1(ClientName, Config).
 
 process_t_is_type_1(ServerRef, Config) ->
@@ -287,8 +285,8 @@ process_t_is_type_1(ServerRef, Config) ->
 
 t_is_type_all(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_is_type_all(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_is_type_all(Pool, Config),
     process_t_is_type_all(ClientName, Config).
 
 process_t_is_type_all(ServerRef, Config) ->
@@ -392,8 +390,8 @@ clear_data(ServerRef, Index) ->
 % Also deletes indices
 t_create_index(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_create_index(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_create_index(Pool, Config),
     process_t_create_index(ClientName, Config).
 
 process_t_create_index(ServerRef, Config) ->
@@ -403,8 +401,8 @@ process_t_create_index(ServerRef, Config) ->
 
 t_create_index_with_shards(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_create_index_with_shards(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_create_index_with_shards(Pool, Config),
     process_t_create_index_with_shards(ClientName, Config).
 
 process_t_create_index_with_shards(ServerRef, Config) ->
@@ -414,8 +412,8 @@ process_t_create_index_with_shards(ServerRef, Config) ->
 
 t_flush_1(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_flush_1(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_flush_1(Pool, Config),
     process_t_flush_1(ClientName, Config).
 
 process_t_flush_1(ServerRef, Config) ->
@@ -431,8 +429,8 @@ process_t_flush_1(ServerRef, Config) ->
 
 t_flush_list(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_flush_list(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_flush_list(Pool, Config),
     process_t_flush_list(ClientName, Config).
 
 process_t_flush_list(ServerRef, Config) ->
@@ -449,8 +447,8 @@ process_t_flush_list(ServerRef, Config) ->
 
 t_flush_all(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_flush_all(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_flush_all(Pool, Config),
     process_t_flush_all(ClientName, Config).
 
 process_t_flush_all(ServerRef, Config) ->
@@ -462,8 +460,8 @@ process_t_flush_all(ServerRef, Config) ->
 
 t_refresh_1(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_refresh_1(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_refresh_1(Pool, Config),
     process_t_refresh_1(ClientName, Config).
 
 process_t_refresh_1(ServerRef, Config) ->
@@ -479,8 +477,8 @@ process_t_refresh_1(ServerRef, Config) ->
 
 t_refresh_list(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_refresh_list(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_refresh_list(Pool, Config),
     process_t_refresh_list(ClientName, Config).
 
 process_t_refresh_list(ServerRef, Config) ->
@@ -497,8 +495,8 @@ process_t_refresh_list(ServerRef, Config) ->
 
 t_refresh_all(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_refresh_all(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_refresh_all(Pool, Config),
     process_t_refresh_all(ClientName, Config).
 
 process_t_refresh_all(ServerRef, Config) ->
@@ -510,8 +508,8 @@ process_t_refresh_all(ServerRef, Config) ->
 
 t_optimize_1(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_optimize_1(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_optimize_1(Pool, Config),
     process_t_optimize_1(ClientName, Config).
 
 process_t_optimize_1(ServerRef, Config) ->
@@ -527,8 +525,8 @@ process_t_optimize_1(ServerRef, Config) ->
 
 t_optimize_list(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_optimize_list(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_optimize_list(Pool, Config),
     process_t_optimize_list(ClientName, Config).
 
 process_t_optimize_list(ServerRef, Config) ->
@@ -545,8 +543,8 @@ process_t_optimize_list(ServerRef, Config) ->
 
 t_optimize_all(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_optimize_all(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_optimize_all(Pool, Config),
     process_t_optimize_all(ClientName, Config).
 
 process_t_optimize_all(ServerRef, Config) ->
@@ -558,8 +556,8 @@ process_t_optimize_all(ServerRef, Config) ->
 
 t_segments_1(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_segments_1(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_segments_1(Pool, Config),
     process_t_segments_1(ClientName, Config).
 
 process_t_segments_1(ServerRef, Config) ->
@@ -575,8 +573,8 @@ process_t_segments_1(ServerRef, Config) ->
 
 t_segments_list(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_segments_list(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_segments_list(Pool, Config),
     process_t_segments_list(ClientName, Config).
 
 process_t_segments_list(ServerRef, Config) ->
@@ -593,8 +591,8 @@ process_t_segments_list(ServerRef, Config) ->
 
 t_segments_all(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_segments_all(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_segments_all(Pool, Config),
     process_t_segments_all(ClientName, Config).
 
 process_t_segments_all(ServerRef, Config) ->
@@ -606,8 +604,8 @@ process_t_segments_all(ServerRef, Config) ->
 
 t_open_index(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_open_index(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_open_index(Pool, Config),
     process_t_open_index(ClientName, Config).
 
 process_t_open_index(ServerRef, Config) ->
@@ -622,8 +620,8 @@ process_t_open_index(ServerRef, Config) ->
 
 t_mget_id(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_mget_id(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_mget_id(Pool, Config),
     process_t_mget_id(ClientName, Config).
 
 process_t_mget_id(ServerRef, Config) ->
@@ -637,8 +635,8 @@ process_t_mget_id(ServerRef, Config) ->
 
 t_mget_type(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_mget_type(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_mget_type(Pool, Config),
     process_t_mget_type(ClientName, Config).
 
 process_t_mget_type(ServerRef, Config) ->
@@ -652,8 +650,8 @@ process_t_mget_type(ServerRef, Config) ->
 
 t_mget_index(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_mget_index(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_mget_index(Pool, Config),
     process_t_mget_index(ClientName, Config).
 
 process_t_mget_index(ServerRef, Config) ->
@@ -667,8 +665,8 @@ process_t_mget_index(ServerRef, Config) ->
 
 t_search(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_search(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_search(Pool, Config),
     process_t_search(ClientName, Config).
 
 process_t_search(ServerRef, Config) ->
@@ -686,8 +684,8 @@ process_t_search(ServerRef, Config) ->
 
 t_count(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_count(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_count(Pool, Config),
     process_t_count(ClientName, Config).
 
 process_t_count(ServerRef, Config) ->
@@ -715,8 +713,8 @@ process_t_count(ServerRef, Config) ->
 
 t_delete_by_query_param(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_delete_by_query_param(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_delete_by_query_param(Pool, Config),
     process_t_delete_by_query_param(ClientName, Config).
 
 process_t_delete_by_query_param(ServerRef, Config) ->
@@ -745,8 +743,8 @@ process_t_delete_by_query_param(ServerRef, Config) ->
 
 t_delete_by_query_doc(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_delete_by_query_doc(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_delete_by_query_doc(Pool, Config),
     process_t_delete_by_query_doc(ClientName, Config).
 
 process_t_delete_by_query_doc(ServerRef, Config) ->
@@ -833,9 +831,9 @@ count_from_result({ok, {_, _, _, JSON}}) ->
 
 t_insert_doc(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_insert_doc(PoolName, Config),
-    process_t_delete_doc(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_insert_doc(Pool, Config),
+    process_t_delete_doc(Pool, Config),
     process_t_insert_doc(ClientName, Config),
     process_t_delete_doc(ClientName, Config).
 
@@ -852,8 +850,8 @@ process_t_insert_doc(ServerRef, Config) ->
 
 t_is_doc(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_is_doc(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_is_doc(Pool, Config),
     process_t_is_doc(ClientName, Config).
 
 process_t_is_doc(ServerRef, Config) ->
@@ -868,9 +866,9 @@ process_t_is_doc(ServerRef, Config) ->
 
 t_get_doc(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_insert_doc(PoolName, Config),
-    process_t_get_doc(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_insert_doc(Pool, Config),
+    process_t_get_doc(Pool, Config),
     process_t_get_doc(ClientName, Config),
     process_t_delete_doc(ClientName, Config).
 
@@ -885,9 +883,9 @@ process_t_get_doc(ServerRef, Config) ->
 
 t_delete_doc(Config) ->
     ClientName = ?config(client_name, Config),
-    PoolName = ?config(pool, Config),
-    process_t_insert_doc(PoolName, Config),
-    process_t_delete_doc(PoolName, Config),
+    Pool = ?config(pool, Config),
+    process_t_insert_doc(Pool, Config),
+    process_t_delete_doc(Pool, Config),
     process_t_insert_doc(ClientName, Config),
     process_t_delete_doc(ClientName, Config).
 
@@ -991,11 +989,7 @@ random_name(Name) ->
     <<Name/binary, Id/binary>>.
 
 setup_environment() ->
-    random:seed(erlang:now()),
-    erlasticsearch:set_env(pools, [{?DEFAULT_POOL, 
-                                     [{size, ?DEFAULT_POOL_SIZE}, 
-                                      {max_overflow, ?DEFAULT_POOL_OVERFLOW}
-                                     ], []}]).
+    random:seed(erlang:now()).
 
 setup_lager() ->
     application:start(crypto),
@@ -1007,6 +1001,7 @@ setup_lager() ->
 
 start(Config) ->
     ClientName = ?config(client_name, Config),
+    PoolName = ?config(pool_name, Config),
     application:start(kernel),
     application:start(stdlib),
     application:start(crypto),
@@ -1017,12 +1012,15 @@ start(Config) ->
     application:start(jsx),
     application:start(poolboy),
     application:start(erlasticsearch),
-    erlasticsearch:start_client(ClientName)
+    erlasticsearch:start_client(ClientName),
+    erlasticsearch:start_pool(PoolName)
     .
 
 stop(Config) ->
     ClientName = ?config(client_name, Config),
+    PoolName = ?config(pool_name, Config),
     erlasticsearch:stop_client(ClientName),
+    erlasticsearch:stop_pool(PoolName),
     ok.
 %    application:stop(jsx),
 %    application:stop(bstr),

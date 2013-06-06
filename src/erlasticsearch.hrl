@@ -25,8 +25,9 @@
 -type doc()             :: binary().
 -type params()          :: [tuple()].
 -type client_name()     :: binary().
--type pool_name()       :: atom().
--type registered_name() :: atom().
+-type pool_name()       :: binary().
+-type registered_client_name() :: atom().
+-type registered_pool_name()   :: atom().
 -type server_ref()      :: atom() | pid() | client_name() | {pool, pool_name()}.
 -type target()          :: atom() | pid().
 
@@ -35,7 +36,14 @@
 -define(DEFAULT_CLIENT_NAME, <<"undefined">>).
 -define(DEFAULT_THRIFT_HOST, "localhost").
 -define(DEFAULT_THRIFT_PORT, 9500).
--define(DEFAULT_THRIFT_OPTIONS, []).
+-define(DEFAULT_POOL_NAME, <<"default_erlasticsearch_pool">>).
+-define(DEFAULT_POOL_OPTIONS, [{size, 5},
+                               {max_overflow, 10}
+                              ]).
+
+-define(DEFAULT_CONNECTION_OPTIONS, [{thrift_host, ?DEFAULT_THRIFT_HOST},
+                                     {thrift_port, ?DEFAULT_THRIFT_PORT}
+                                    ]).
 -define(REGISTERED_NAME_PREFIX, "erlasticsearch_").
 
 %% Errors
