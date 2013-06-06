@@ -36,6 +36,7 @@ start_link(Args) ->
 %%%===================================================================
 
 init(Args) ->
+    process_flag(trap_exit, true),
     {ok, Worker} = erlasticsearch:start_link(Args),
     {ok, #state{worker=Worker}}.
 
@@ -64,12 +65,14 @@ handle_call({F}, _From, State=#state{worker=Worker}) ->
 handle_cast(_Msg, State) ->
     {stop, unhandled_cast, State}.
 
+handle_info({'EXIT', _, shutdown}, State) ->
+    {noreply, State};
+
 handle_info(_Info, State) ->
     lager:debug("_Info:~p~n", [_Info]),
     {stop, unhandled_info, State}.
 
 terminate(_Reason, #state{worker=Worker}) ->
-    lager:debug("_Reason:~p~n", [_Reason]),
     ok = erlasticsearch:stop(Worker),
     ok.
 

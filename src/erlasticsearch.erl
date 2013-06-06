@@ -106,7 +106,7 @@ start_link(ConnectionOptions) ->
     gen_server:start_link(?MODULE, [?DEFAULT_CLIENT_NAME, ConnectionOptions], []).
 
 start_link(ClientName, ConnectionOptions) ->
-    lager:debug("Starting:~p~n", [{ClientName, ConnectionOptions}]),
+%    lager:debug("Starting:~p~n", [{ClientName, ConnectionOptions}]),
     gen_server:start_link({local, registered_client_name(ClientName)}, ?MODULE, [ClientName, ConnectionOptions], []).
 
 %% @doc Name used to register the client process
@@ -466,6 +466,7 @@ init([ClientName, ConnectionOptions]) ->
                 connection = Connection}}.
 
 handle_call({stop}, _From, State) ->
+    thrift_client:close(State#state.connection),
     {stop, normal, ok, State};
 
 handle_call({_Request = health}, _From, State = #state{connection = Connection0}) ->
@@ -595,15 +596,19 @@ handle_call({_Request = clear_cache, Index, Params}, _From, State = #state{conne
     {reply, RestResponse, State#state{connection = Connection1}};
 
 handle_call(_Request, _From, State) ->
+    thrift_client:close(State#state.connection),
     {stop, unhandled_call, State}.
 
 handle_cast(_Request, State) ->
+    thrift_client:close(State#state.connection),
     {stop, unhandled_info, State}.
 
 handle_info(_Info, State) ->
+    thrift_client:close(State#state.connection),
     {stop, unhandled_info, State}.
 
-terminate(_Reason, _State) ->
+terminate(_Reason, State) ->
+    thrift_client:close(State#state.connection),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
