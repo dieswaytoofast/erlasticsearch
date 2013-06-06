@@ -174,7 +174,7 @@ state(ServerRef) ->
 
 %% @doc Get the state of the  ElasticSearch cluster
 -spec state(server_ref(), params()) -> response().
-state(ServerRef, Params) ->
+state(ServerRef, Params) when is_list(Params) ->
     route_call(ServerRef, {state, Params}, infinity).
 
 %% @equiv nodes_info(ServerRef, [], []).
@@ -192,7 +192,7 @@ nodes_info(ServerRef, NodeNames) when is_list(NodeNames) ->
 
 %% @doc Get the nodes_info of the  ElasticSearch cluster
 -spec nodes_info(server_ref(), [node_name()], params()) -> response().
-nodes_info(ServerRef, NodeNames, Params) ->
+nodes_info(ServerRef, NodeNames, Params) when is_list(NodeNames), is_list(Params) ->
     route_call(ServerRef, {nodes_info, NodeNames, Params}, infinity).
 
 %% @equiv nodes_stats(ServerRef, [], []).
@@ -210,7 +210,7 @@ nodes_stats(ServerRef, NodeNames) when is_list(NodeNames) ->
 
 %% @doc Get the nodes_stats of the  ElasticSearch cluster
 -spec nodes_stats(server_ref(), [node_name()], params()) -> response().
-nodes_stats(ServerRef, NodeNames, Params) ->
+nodes_stats(ServerRef, NodeNames, Params) when is_list(NodeNames), is_list(Params) ->
     route_call(ServerRef, {nodes_stats, NodeNames, Params}, infinity).
 
 %% @doc Get the status of an index/indices in the  ElasticSearch cluster
@@ -222,12 +222,12 @@ status(ServerRef, Indexes) when is_list(Indexes)->
 
 %% @equiv create_index(ServerRef, Index, <<>>)
 -spec create_index(server_ref(), index()) -> response().
-create_index(ServerRef, Index) ->
+create_index(ServerRef, Index) when is_binary(Index) ->
     create_index(ServerRef, Index, <<>>).
 
 %% @doc Create an index in the ElasticSearch cluster
 -spec create_index(server_ref(), index(), doc()) -> response().
-create_index(ServerRef, Index, Doc) ->
+create_index(ServerRef, Index, Doc) when is_binary(Index), is_binary(Doc) ->
     route_call(ServerRef, {create_index, Index, Doc}, infinity).
 
 %% @doc Delete all the indices in the ElasticSearch cluster
@@ -244,12 +244,12 @@ delete_index(ServerRef, Index) when is_list(Index) ->
 
 %% @doc Open an index in the ElasticSearch cluster
 -spec open_index(server_ref(), index()) -> response().
-open_index(ServerRef, Index) ->
+open_index(ServerRef, Index) when is_binary(Index) ->
     route_call(ServerRef, {open_index, Index}, infinity).
 
 %% @doc Close an index in the ElasticSearch cluster
 -spec close_index(server_ref(), index()) -> response().
-close_index(ServerRef, Index) ->
+close_index(ServerRef, Index) when is_binary(Index) ->
     route_call(ServerRef, {close_index, Index}, infinity).
 
 %% @doc Check if an index/indices exists in the ElasticSearch cluster
@@ -328,60 +328,60 @@ is_type(ServerRef, Indexes, Types) when is_list(Indexes), is_list(Types) ->
 
 %% @equiv insert_doc(Index, Type, Id, Doc, []).
 -spec insert_doc(server_ref(), index(), type(), id(), doc()) -> response().
-insert_doc(ServerRef, Index, Type, Id, Doc) ->
+insert_doc(ServerRef, Index, Type, Id, Doc) when is_binary(Index), is_binary(Type), is_binary(Doc) ->
     insert_doc(ServerRef, Index, Type, Id, Doc, []).
 
 %% @doc Insert a doc into the ElasticSearch cluster
 -spec insert_doc(server_ref(), index(), type(), id(), doc(), params()) -> response().
-insert_doc(ServerRef, Index, Type, Id, Doc, Params) ->
+insert_doc(ServerRef, Index, Type, Id, Doc, Params) when is_binary(Index), is_binary(Type), is_binary(Doc), is_list(Params) ->
     route_call(ServerRef, {insert_doc, Index, Type, Id, Doc, Params}, infinity).
 
 %% @doc Checks to see if the doc exists
 -spec is_doc(server_ref(), index(), type(), id()) -> response().
-is_doc(ServerRef, Index, Type, Id) ->
+is_doc(ServerRef, Index, Type, Id) when is_binary(Index), is_binary(Type) ->
     route_call(ServerRef, {is_doc, Index, Type, Id}, infinity).
 
 %% @equiv get_doc(ServerRef, Index, Type, Id, []).
 -spec get_doc(server_ref(), index(), type(), id()) -> response().
-get_doc(ServerRef, Index, Type, Id) ->
+get_doc(ServerRef, Index, Type, Id) when is_binary(Index), is_binary(Type) ->
     get_doc(ServerRef, Index, Type, Id, []).
 
 %% @doc Get a doc from the ElasticSearch cluster
 -spec get_doc(server_ref(), index(), type(), id(), params()) -> response().
-get_doc(ServerRef, Index, Type, Id, Params) ->
+get_doc(ServerRef, Index, Type, Id, Params) when is_binary(Index), is_binary(Type), is_list(Params)->
     route_call(ServerRef, {get_doc, Index, Type, Id, Params}, infinity).
 
 %% @equiv mget_doc(ServerRef, <<>>, <<>>, Doc)
 -spec mget_doc(server_ref(), doc()) -> response().
-mget_doc(ServerRef, Doc) ->
+mget_doc(ServerRef, Doc) when is_binary(Doc) ->
     mget_doc(ServerRef, <<>>, <<>>, Doc).
 
 %% @equiv mget_doc(ServerRef, Index, <<>>, Doc)
 -spec mget_doc(server_ref(), index(), doc()) -> response().
-mget_doc(ServerRef, Index, Doc) ->
+mget_doc(ServerRef, Index, Doc) when is_binary(Index), is_binary(Doc)->
     mget_doc(ServerRef, Index, <<>>, Doc).
 
 %% @doc Get a doc from the ElasticSearch cluster
 -spec mget_doc(server_ref(), index(), type(), doc()) -> response().
-mget_doc(ServerRef, Index, Type, Doc) ->
+mget_doc(ServerRef, Index, Type, Doc) when is_binary(Index), is_binary(Type), is_binary(Doc)->
     route_call(ServerRef, {mget_doc, Index, Type, Doc}, infinity).
 
 %% @equiv delete_doc(ServerRef, Index, Type, Id, []).
 -spec delete_doc(server_ref(), index(), type(), id()) -> response().
-delete_doc(ServerRef, Index, Type, Id) ->
+delete_doc(ServerRef, Index, Type, Id) when is_binary(Index), is_binary(Type) ->
     delete_doc(ServerRef, Index, Type, Id, []).
 %% @doc Delete a doc from the ElasticSearch cluster
 -spec delete_doc(server_ref(), index(), type(), id(), params()) -> response().
-delete_doc(ServerRef, Index, Type, Id, Params) ->
+delete_doc(ServerRef, Index, Type, Id, Params) when is_binary(Index), is_binary(Type), is_list(Params)->
     route_call(ServerRef, {delete_doc, Index, Type, Id, Params}, infinity).
 
 %% @equiv search(ServerRef, Index, Type, Doc, []).
 -spec search(server_ref(), index(), type(), doc()) -> response().
-search(ServerRef, Index, Type, Doc) ->
+search(ServerRef, Index, Type, Doc) when is_binary(Index), is_binary(Type), is_binary(Doc)->
     search(ServerRef, Index, Type, Doc, []).
 %% @doc Search for docs in the ElasticSearch cluster
 -spec search(server_ref(), index(), type(), doc(), params()) -> response().
-search(ServerRef, Index, Type, Doc, Params) ->
+search(ServerRef, Index, Type, Doc, Params) when is_binary(Index), is_binary(Type), is_binary(Doc), is_list(Params) ->
     route_call(ServerRef, {search, Index, Type, Doc, Params}, infinity).
 
 %% @equiv refresh(ServerRef, ?ALL).
@@ -633,8 +633,8 @@ clean_options([{thrift_host, _} | Tail], Acc) ->
     clean_options(Tail, Acc);
 clean_options([{thrift_port, _} | Tail], Acc) -> 
     clean_options(Tail, Acc);
-clean_options([Head | Tail], [Head |Acc]) -> 
-    clean_options(Tail, Acc).
+clean_options([Head | Tail], Acc) -> 
+    clean_options(Tail, [Head |Acc]).
 
 
 %% @doc Sets the value of the configuration parameter Key for this application.
