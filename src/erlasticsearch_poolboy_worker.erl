@@ -69,7 +69,6 @@ handle_info({'EXIT', _, shutdown}, State) ->
     {noreply, State};
 
 handle_info(_Info, State) ->
-    lager:debug("_Info:~p~n", [_Info]),
     {stop, unhandled_info, State}.
 
 terminate(_Reason, #state{worker=Worker}) ->

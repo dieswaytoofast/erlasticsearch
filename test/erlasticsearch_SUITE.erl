@@ -28,7 +28,7 @@ suite() ->
     [{ct_hooks,[cth_surefire]}, {timetrap,{seconds,320}}].
 
 init_per_suite(Config) ->
-    setup_lager(),
+%    setup_lager(),
     setup_environment(),
     Config.
 

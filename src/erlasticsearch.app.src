@@ -20,7 +20,7 @@
                   compiler,
                   syntax_tools,
                   sasl,
-                  lager,
+%                  lager,
                   poolboy
                  ]},
   {mod, {erlasticsearch_app, []}},

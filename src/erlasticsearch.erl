@@ -107,7 +107,6 @@ start_link(ConnectionOptions) ->
     gen_server:start_link(?MODULE, [?DEFAULT_CLIENT_NAME, ConnectionOptions], []).
 
 start_link(ClientName, ConnectionOptions) ->
-%    lager:debug("Starting:~p~n", [{ClientName, ConnectionOptions}]),
     gen_server:start_link({local, registered_client_name(ClientName)}, ?MODULE, [ClientName, ConnectionOptions], []).
 
 %% @doc Name used to register the client process

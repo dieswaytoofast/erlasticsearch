@@ -19,7 +19,6 @@
 
 -spec start(StartType :: normal | {takeover, node()} | {failover, node()}, StartArgs :: [term()]) -> {ok, pid()}.
 start(_StartType, _StartArgs) ->
-%    lager:debug("Starting ErlasticSearch application (~s)~n", [?MODULE]),
     erlasticsearch_sup:start_link().
 
 stop(_State) ->
