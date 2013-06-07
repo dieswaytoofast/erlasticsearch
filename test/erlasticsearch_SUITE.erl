@@ -45,7 +45,7 @@ init_per_group(_GroupName, Config0) ->
 
 
     Index = random_name(<<"index_">>),
-    IndexWithShards = bstr:join([Index, <<"with_shards">>], <<"_">>),
+    IndexWithShards = erlasticsearch:join([Index, <<"with_shards">>], <<"_">>),
 
     Config2 = [{index, Index}, {index_with_shards, IndexWithShards}]
                 ++ Config1,
@@ -421,7 +421,7 @@ process_t_flush_1(ServerRef, Config) ->
     create_indices(ServerRef, Index),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                FullIndex = bstr:join([Index, BX], <<"_">>),
+                FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
                 Response = erlasticsearch:flush(ServerRef, FullIndex),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
@@ -439,7 +439,7 @@ process_t_flush_list(ServerRef, Config) ->
     Indexes = 
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                bstr:join([Index, BX], <<"_">>)
+                erlasticsearch:join([Index, BX], <<"_">>)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     Response = erlasticsearch:flush(ServerRef, Indexes),
     true = erlasticsearch:is_200(Response),
@@ -469,7 +469,7 @@ process_t_refresh_1(ServerRef, Config) ->
     create_indices(ServerRef, Index),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                FullIndex = bstr:join([Index, BX], <<"_">>),
+                FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
                 Response = erlasticsearch:refresh(ServerRef, FullIndex),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
@@ -487,7 +487,7 @@ process_t_refresh_list(ServerRef, Config) ->
     Indexes = 
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                bstr:join([Index, BX], <<"_">>)
+                erlasticsearch:join([Index, BX], <<"_">>)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     Response = erlasticsearch:refresh(ServerRef, Indexes),
     true = erlasticsearch:is_200(Response),
@@ -517,7 +517,7 @@ process_t_optimize_1(ServerRef, Config) ->
     create_indices(ServerRef, Index),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                FullIndex = bstr:join([Index, BX], <<"_">>),
+                FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
                 Response = erlasticsearch:optimize(ServerRef, FullIndex),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
@@ -535,7 +535,7 @@ process_t_optimize_list(ServerRef, Config) ->
     Indexes = 
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                bstr:join([Index, BX], <<"_">>)
+                erlasticsearch:join([Index, BX], <<"_">>)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     Response = erlasticsearch:optimize(ServerRef, Indexes),
     true = erlasticsearch:is_200(Response),
@@ -565,7 +565,7 @@ process_t_segments_1(ServerRef, Config) ->
     create_indices(ServerRef, Index),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                FullIndex = bstr:join([Index, BX], <<"_">>),
+                FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
                 Response = erlasticsearch:segments(ServerRef, FullIndex),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
@@ -583,7 +583,7 @@ process_t_segments_list(ServerRef, Config) ->
     Indexes = 
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                bstr:join([Index, BX], <<"_">>)
+                erlasticsearch:join([Index, BX], <<"_">>)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     Response = erlasticsearch:segments(ServerRef, Indexes),
     true = erlasticsearch:is_200(Response),
@@ -798,7 +798,7 @@ id_query(Index, Type) ->
 param_query(X) ->
     Key = key(X),
     Value = value(X),
-    bstr:join([Key, Value], <<":">>).
+    erlasticsearch:join([Key, Value], <<":">>).
 
 json_query(X) ->
     Key = key(X),
@@ -904,7 +904,7 @@ process_t_delete_doc(ServerRef, Config) ->
 create_indices(ServerRef, Index) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                FullIndex = bstr:join([Index, BX], <<"_">>),
+                FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
                 erlasticsearch:create_index(ServerRef, FullIndex),
                 erlasticsearch:flush(ServerRef, Index)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
@@ -912,7 +912,7 @@ create_indices(ServerRef, Index) ->
 are_indices_1(ServerRef, Index) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                FullIndex = bstr:join([Index, BX], <<"_">>),
+                FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
                 true = erlasticsearch:is_index(ServerRef, FullIndex)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
@@ -920,13 +920,13 @@ are_indices_all(ServerRef, Index) ->
     FullIndexList = 
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                bstr:join([Index, BX], <<"_">>)
+                erlasticsearch:join([Index, BX], <<"_">>)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
     true = erlasticsearch:is_index(ServerRef, FullIndexList).
 
 delete_all_indices(ServerRef, Config) ->
     Index = ?config(index, Config),
-    IndexWithShards = bstr:join([Index, <<"with_shards">>], <<"_">>),
+    IndexWithShards = erlasticsearch:join([Index, <<"with_shards">>], <<"_">>),
     delete_all_indices(ServerRef, Index, true),
     delete_all_indices(ServerRef, IndexWithShards, true),
     erlasticsearch:flush(ServerRef).
@@ -935,7 +935,7 @@ delete_all_indices(ServerRef, Config) ->
 delete_all_indices(ServerRef, Index, CheckIndex) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                FullIndex = bstr:join([Index, BX], <<"_">>),
+                FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
 
                 case CheckIndex of
                     true ->
@@ -981,7 +981,7 @@ enumerated(Item, N) when is_binary(Item) ->
 data_index(Data, Index) ->
     BData = list_to_binary(atom_to_list(Data)),
     BIndex = list_to_binary(integer_to_list(Index)),
-    bstr:join([BData, BIndex], <<"_">>).
+    erlasticsearch:join([BData, BIndex], <<"_">>).
 
 random_name(Name) ->
     random:seed(erlang:now()),
@@ -1008,7 +1008,6 @@ start(Config) ->
     application:start(compiler),
     application:start(syntax_tools),
     application:start(sasl),
-    application:start(bstr),
     application:start(jsx),
     application:start(poolboy),
     application:start(erlasticsearch),
@@ -1023,7 +1022,6 @@ stop(Config) ->
     erlasticsearch:stop_pool(PoolName),
     ok.
 %    application:stop(jsx),
-%    application:stop(bstr),
 %    application:stop(sasl),
 %    application:stop(syntax_tools),
 %    application:stop(compiler),

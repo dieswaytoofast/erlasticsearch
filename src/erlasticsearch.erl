@@ -28,6 +28,7 @@
 -export([registered_client_name/1]).
 -export([get_target/1]).
 -export([get_env/2, set_env/2]).
+-export([join/2]).
 
 %% ElasticSearch
 % Tests
@@ -83,7 +84,7 @@
 %% @doc Start the application and all its dependencies.
 -spec start() -> ok.
 start() ->
-    d_util:start_deps(?APP).
+    start_deps(?APP).
 
 %% @doc To start up a 'simple' client
 -spec start(params()) -> {ok, pid()}.
@@ -93,7 +94,7 @@ start(Options) when is_list(Options) ->
 %% @doc Stop the application and all its dependencies.
 -spec stop() -> ok.
 stop() ->
-    d_util:stop_deps(?APP).
+    stop_deps(?APP).
 
 %% @doc Stop this gen_server
 -spec stop(server_ref()) -> ok | error().
@@ -456,6 +457,41 @@ clear_cache(ServerRef, Index, Params) when is_binary(Index), is_list(Params) ->
 clear_cache(ServerRef, Indexes, Params) when is_list(Indexes), is_list(Params) ->
     route_call(ServerRef, {clear_cache, Indexes, Params}, infinity).
 
+%% @doc The official way to get a value from this application's env.
+%%      Will return Default if that key is unset.
+-spec get_env(Key :: atom(), Default :: term()) -> term().
+get_env(Key, Default) ->
+    case application:get_env(?APP, Key) of
+        {ok, Value} ->
+            Value;
+        _ ->
+            Default
+    end.
+-spec is_200(response()) -> boolean().
+is_200({ok, Response}) ->
+    case Response#restResponse.status of
+        200 -> true;
+        _ -> false
+    end.
+
+-spec is_200_or_201(response()) -> boolean().
+is_200_or_201({ok, Response}) ->
+    case Response#restResponse.status of
+        200 -> true;
+        201 -> true;
+        _ -> false
+    end.
+
+%% @doc Join a a list of strings into one string, adding a separator between
+%%      each string.
+-spec join([binary()], Sep::binary()) -> binary().
+join(List, Sep) when is_list(List) ->
+    list_to_binary(join_list_sep(List, Sep)).
+
+-spec decode_response(response()) -> any().
+decode_response({ok, {_,_,_,Json}}) ->
+    jsx:decode(Json).
+
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
@@ -659,21 +695,21 @@ rest_request_state(Params) when is_list(Params) ->
 
 rest_request_nodes_info(NodeNames, Params) when is_list(NodeNames),
                                                 is_list(Params) ->
-    NodeNameList = bstr:join(NodeNames, <<",">>),
+    NodeNameList = join(NodeNames, <<",">>),
     Uri = make_uri([?NODES, NodeNameList], Params),
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri}.
 
 rest_request_nodes_stats(NodeNames, Params) when is_list(NodeNames),
                                                 is_list(Params) ->
-    NodeNameList = bstr:join(NodeNames, <<",">>),
+    NodeNameList = join(NodeNames, <<",">>),
     Uri = make_uri([?NODES, NodeNameList, ?STATS], Params),
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri}.
 
 rest_request_status(Index) when is_list(Index) ->
-    IndexList = bstr:join(Index, <<",">>),
-    Uri = bstr:join([IndexList, ?STATUS], <<"/">>),
+    IndexList = join(Index, <<",">>),
+    Uri = join([IndexList, ?STATUS], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri}.
 
@@ -684,17 +720,17 @@ rest_request_create_index(Index, Doc) when is_binary(Index),
                  body = Doc}.
 
 rest_request_delete_index(Index) when is_list(Index) ->
-    IndexList = bstr:join(Index, <<",">>),
+    IndexList = join(Index, <<",">>),
     #restRequest{method = ?elasticsearch_Method_DELETE,
                  uri = IndexList}.
 
 rest_request_open_index(Index) when is_binary(Index) ->
-    Uri = bstr:join([Index, ?OPEN], <<"/">>),
+    Uri = join([Index, ?OPEN], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri}.
 
 rest_request_close_index(Index) when is_binary(Index) ->
-    Uri = bstr:join([Index, ?CLOSE], <<"/">>),
+    Uri = join([Index, ?CLOSE], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri}.
 
@@ -702,8 +738,8 @@ rest_request_count(Index, Type, Doc, Params) when is_list(Index),
                                         is_list(Type),
                                         is_binary(Doc),
                                         is_list(Params) ->
-    IndexList = bstr:join(Index, <<",">>),
-    TypeList = bstr:join(Type, <<",">>),
+    IndexList = join(Index, <<",">>),
+    TypeList = join(Type, <<",">>),
     Uri = make_uri([IndexList, TypeList, ?COUNT], Params),
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri,
@@ -713,23 +749,23 @@ rest_request_delete_by_query(Index, Type, Doc, Params) when is_list(Index),
                                         is_list(Type),
                                         is_binary(Doc),
                                         is_list(Params) ->
-    IndexList = bstr:join(Index, <<",">>),
-    TypeList = bstr:join(Type, <<",">>),
+    IndexList = join(Index, <<",">>),
+    TypeList = join(Type, <<",">>),
     Uri = make_uri([IndexList, TypeList, ?QUERY], Params),
     #restRequest{method = ?elasticsearch_Method_DELETE,
                  uri = Uri,
                  body = Doc}.
 
 rest_request_is_index(Index) when is_list(Index) ->
-    IndexList = bstr:join(Index, <<",">>),
+    IndexList = join(Index, <<",">>),
     #restRequest{method = ?elasticsearch_Method_HEAD,
                  uri = IndexList}.
 
 rest_request_is_type(Index, Type) when is_list(Index),
                                         is_list(Type) ->
-    IndexList = bstr:join(Index, <<",">>),
-    TypeList = bstr:join(Type, <<",">>),
-    Uri = bstr:join([IndexList, TypeList], <<"/">>),
+    IndexList = join(Index, <<",">>),
+    TypeList = join(Type, <<",">>),
+    Uri = join([IndexList, TypeList], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_HEAD,
                  uri = Uri}.
 
@@ -793,74 +829,34 @@ rest_request_search(Index, Type, Doc, Params) when is_binary(Index),
                  body = Doc}.
 
 rest_request_refresh(Index) when is_list(Index) ->
-    IndexList = bstr:join(Index, <<",">>),
-    Uri = bstr:join([IndexList, ?REFRESH], <<"/">>),
+    IndexList = join(Index, <<",">>),
+    Uri = join([IndexList, ?REFRESH], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri}.
 
 rest_request_flush(Index) when is_list(Index) ->
-    IndexList = bstr:join(Index, <<",">>),
-    Uri = bstr:join([IndexList, ?FLUSH], <<"/">>),
+    IndexList = join(Index, <<",">>),
+    Uri = join([IndexList, ?FLUSH], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri}.
 
 rest_request_optimize(Index) when is_list(Index) ->
-    IndexList = bstr:join(Index, <<",">>),
-    Uri = bstr:join([IndexList, ?OPTIMIZE], <<"/">>),
+    IndexList = join(Index, <<",">>),
+    Uri = join([IndexList, ?OPTIMIZE], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri}.
 
 rest_request_segments(Index) when is_list(Index) ->
-    IndexList = bstr:join(Index, <<",">>),
-    Uri = bstr:join([IndexList, ?SEGMENTS], <<"/">>),
+    IndexList = join(Index, <<",">>),
+    Uri = join([IndexList, ?SEGMENTS], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri}.
 
 rest_request_clear_cache(Index, Params) when is_list(Index) ->
-    IndexList = bstr:join(Index, <<",">>),
+    IndexList = join(Index, <<",">>),
     Uri = make_uri([IndexList, ?CLEAR_CACHE], Params),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri}.
-
-%% @doc Make a complete URI based on the tokens and props
-make_uri(BaseList, PropList) ->
-    Base = bstr:join(BaseList, <<"/">>),
-    case PropList of
-        [] ->
-            Base;
-        PropList ->
-            Props = d_uri:uri_params_encode(PropList),
-            bstr:join([Base, Props], <<"?">>)
-    end.
-
-%% @doc The official way to get a value from this application's env.
-%%      Will return Default if that key is unset.
--spec get_env(Key :: atom(), Default :: term()) -> term().
-get_env(Key, Default) ->
-    case application:get_env(?APP, Key) of
-        {ok, Value} ->
-            Value;
-        _ ->
-            Default
-    end.
--spec is_200(response()) -> boolean().
-is_200({ok, Response}) ->
-    case Response#restResponse.status of
-        200 -> true;
-        _ -> false
-    end.
-
--spec is_200_or_201(response()) -> boolean().
-is_200_or_201({ok, Response}) ->
-    case Response#restResponse.status of
-        200 -> true;
-        201 -> true;
-        _ -> false
-    end.
-
--spec decode_response(response()) -> any().
-decode_response({ok, {_,_,_,Json}}) ->
-    jsx:decode(Json).
 
 %% @doc Send the request to either poolboy, or the gen_server
 -spec route_call(server_ref(), tuple(), timeout()) -> response().
@@ -881,3 +877,99 @@ get_target(ServerRef) when is_atom(ServerRef) ->
 get_target(ClientName) when is_binary(ClientName) ->
     whereis(registered_client_name(ClientName)).
 
+-spec join_list_sep([binary()], binary()) -> [any()].
+join_list_sep([Head | Tail], Sep) ->
+    join_list_sep(Tail, Sep, [Head]);
+join_list_sep([], _Sep) ->
+    [].
+join_list_sep([Head | Tail], Sep, Acc) ->
+    join_list_sep(Tail, Sep, [Head, Sep | Acc]);
+join_list_sep([], _Sep, Acc) ->
+    lists:reverse(Acc).
+
+-spec start_deps(App :: atom()) -> ok.
+start_deps(App) ->
+    application:load(App),
+    {ok, Deps} = application:get_key(App, applications),
+    lists:foreach(fun start_deps/1, Deps),
+    start_app(App).
+
+-spec start_app(App :: atom()) -> ok.
+start_app(App) ->
+    case application:start(App) of
+        {error, {already_started, _}} -> ok;
+        ok                            -> ok
+    end.
+
+-spec stop_deps(App :: atom()) -> ok.
+stop_deps(App) ->
+    stop_app(App),
+    {ok, Deps} = application:get_key(App, applications),
+    lists:foreach(fun stop_deps/1, lists:reverse(Deps)).
+
+-spec stop_app(App :: atom()) -> ok.
+stop_app(kernel) ->
+    ok;
+stop_app(stdlib) ->
+    ok;
+stop_app(App) ->
+    case application:stop(App) of
+        {error, {not_started, _}} -> ok;
+        ok                        -> ok
+    end.
+
+
+%% @doc Make a complete URI based on the tokens and props
+make_uri(BaseList, PropList) ->
+    Base = join(BaseList, <<"/">>),
+    case PropList of
+        [] ->
+            Base;
+        PropList ->
+            Props = uri_params_encode(PropList),
+            join([Base, Props], <<"?">>)
+    end.
+
+% Thanks to https://github.com/tim/erlang-oauth.git
+-spec uri_params_encode([tuple()]) -> string().
+uri_params_encode(Params) ->
+  intercalate("&", [uri_join([K, V], "=") || {K, V} <- Params]).
+
+uri_join(Values, Separator) ->
+  string:join([uri_encode(Value) || Value <- Values], Separator).
+
+intercalate(Sep, Xs) ->
+  lists:concat(intersperse(Sep, Xs)).
+
+intersperse(_, []) ->
+  [];
+intersperse(_, [X]) ->
+  [X];
+intersperse(Sep, [X | Xs]) ->
+  [X, Sep | intersperse(Sep, Xs)].
+
+uri_encode(Term) when is_binary(Term) ->
+    binary_to_list(Term);
+uri_encode(Term) when is_integer(Term) ->
+  integer_to_list(Term);
+uri_encode(Term) when is_atom(Term) ->
+  uri_encode(atom_to_list(Term));
+uri_encode(Term) when is_list(Term) ->
+  uri_encode(lists:reverse(Term, []), []).
+
+-define(is_alphanum(C), C >= $A, C =< $Z; C >= $a, C =< $z; C >= $0, C =< $9).
+
+uri_encode([X | T], Acc) when ?is_alphanum(X); X =:= $-; X =:= $_; X =:= $.; X =:= $~ ->
+  uri_encode(T, [X | Acc]);
+uri_encode([X | T], Acc) ->
+  NewAcc = [$%, dec2hex(X bsr 4), dec2hex(X band 16#0f) | Acc],
+  uri_encode(T, NewAcc);
+uri_encode([], Acc) ->
+  Acc.
+
+-compile({inline, [{dec2hex, 1}]}).
+
+dec2hex(N) when N >= 10 andalso N =< 15 ->
+  N + $A - 10;
+dec2hex(N) when N >= 0 andalso N =< 9 ->
+  N + $0.
