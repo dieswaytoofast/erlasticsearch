@@ -12,7 +12,7 @@
 {application, erlasticsearch,
  [
   {description, "thrift based elasticsearch"},
-  {vsn, "0.1.0"},
+  {vsn, "1.2.0"},
   {registered, []},
   {applications, [
                   kernel,
