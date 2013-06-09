@@ -35,26 +35,85 @@ init_per_suite(Config) ->
 end_per_suite(_Config) ->
     ok.
 
-init_per_group(_GroupName, Config0) ->
+connection_options(1) ->
+    [];
+connection_options(2) ->
+    [{thrift_host, "localhost"}];
+connection_options(3) ->
+    [{thrift_host, "localhost"},
+     {thrift_port, 9500}];
+connection_options(4) ->
+    [{thrift_host, "localhost"},
+     {thrift_port, 9500},
+     {thrift_options, [{framed, false}]}];
+connection_options(_) ->
+    [{thrift_host, "localhost"},
+     {thrift_port, 9500},
+     {thrift_options, [{framed, false}]},
+     {binary_response, false}].
+
+pool_options(1) ->
+    [];
+pool_options(2) ->
+    [{size, 7}];
+pool_options(_) ->
+    [{size, 7},
+     {max_overflow, 14}].
+
+update_config(Config) ->
+    Version = es_test_version(Config),
+    Config1 = lists:foldl(fun(X, Acc) -> 
+                    proplists:delete(X, Acc)
+            end, Config, [es_test_version,
+                          index,
+                          type,
+                          index_with_shards,
+                          connection_options,
+                          pool_options,
+                          client_name,
+                          pool_name,
+                          pool]),
+    [{es_test_version, Version + 1} | Config1].
+
+es_test_version(Config) ->
+    case proplists:get_value(es_test_version, Config) of
+        undefined -> 1;
+        Val -> Val
+    end.
+
+
+init_per_group(_GroupName, Config) ->
     ClientName = random_name(<<"client_">>),
     PoolName = random_name(<<"pool_">>),
-    Config1 = [{client_name, ClientName},
+
+    Config1 = 
+    case ?config(saved_config, Config) of
+        {_, Config0} -> Config0;
+        undefined -> Config
+    end,
+    Version = es_test_version(Config1),
+    PoolOptions = pool_options(Version),
+    ConnectionOptions = connection_options(Version),
+
+    Config2 = [{client_name, ClientName},
+               {pool_options, PoolOptions},
+               {connection_options, ConnectionOptions},
                {pool_name, PoolName},
-               {pool, {pool, PoolName}} | Config0],
-    start(Config1),
+               {pool, {pool, PoolName}} | Config1],
+    start(Config2),
 
 
     Index = random_name(<<"index_">>),
     IndexWithShards = erlasticsearch:join([Index, <<"with_shards">>], <<"_">>),
 
-    Config2 = [{index, Index}, {index_with_shards, IndexWithShards}]
-                ++ Config1,
+    Config3 = [{index, Index}, {index_with_shards, IndexWithShards}]
+                ++ Config2,
     % Clear out any existing indices w/ this name
-    delete_all_indices(ClientName, Config2),
+    delete_all_indices(ClientName, Config3),
 
     Type = random_name(<<"type_">>),
 
-    [{type, Type}] ++ Config2.
+    [{type, Type}] ++ Config3.
 
 end_per_group(_GroupName, Config) ->
     ClientName = ?config(client_name, Config),
@@ -63,7 +122,8 @@ end_per_group(_GroupName, Config) ->
     delete_all_indices(ClientName, Index, true),
     delete_all_indices(ClientName, IndexWithShards, true),
     stop(Config),
-    ok.
+    Config1 = update_config(Config),
+    {save_config, Config1}.
 
 
 init_per_testcase(_TestCase, Config) ->
@@ -73,7 +133,7 @@ end_per_testcase(_TestCase, _Config) ->
     ok.
 
 groups() ->
-    [{crud_index, [],
+    [{crud_index, [{repeat, 5}],
        [t_is_index_1,
         t_is_index_all,
         t_is_type_1,
@@ -114,9 +174,9 @@ groups() ->
         t_mget_type,
         t_mget_id
       ]},
-     {test, [],
+     {test, [{repeat, 5}],
       [
-       t_mget_id
+        t_is_type_1
       ]},
      {cluster_helpers, [],
       [t_health,
@@ -136,7 +196,7 @@ groups() ->
 all() ->
     [
 %        {group, test}
-        {group, crud_index}, 
+        {group, crud_index},
         {group, crud_doc}, 
         {group, search},
         {group, index_helpers},
@@ -342,7 +402,7 @@ are_types_1(ServerRef, Index, Type) ->
                 FullIndex = enumerated(Index, X),
                 lists:foreach(fun(Y) ->
                             FullType = enumerated(Type, Y),
-                            true = erlasticsearch:is_type(ServerRef, FullIndex, FullType)
+                            true = true_response(erlasticsearch:is_type(ServerRef, FullIndex, FullType))
                     end, lists:seq(1, ?DOCUMENT_DEPTH))
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
@@ -358,15 +418,15 @@ are_types_all(ServerRef, Index, Type) ->
     % List of indices
     lists:foreach(fun(X) ->
                 FullType = enumerated(Type, X),
-                true = erlasticsearch:is_type(ServerRef, FullIndexList, FullType)
+                true = true_response(erlasticsearch:is_type(ServerRef, FullIndexList, FullType))
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
     % List of types
     lists:foreach(fun(X) ->
                 FullIndex = enumerated(Index, X),
-                true = erlasticsearch:is_type(ServerRef, FullIndex, FullTypeList)
+                true = true_response(erlasticsearch:is_type(ServerRef, FullIndex, FullTypeList))
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
     % List of indices and types
-    true = erlasticsearch:is_type(ServerRef, FullIndexList, FullTypeList).
+    true = true_response(erlasticsearch:is_type(ServerRef, FullIndexList, FullTypeList)).
 
 build_data(ServerRef, Index, Type) ->
     lists:foreach(fun(X) ->
@@ -805,28 +865,38 @@ json_query(X) ->
     Value = value(X),
     jsx:encode([{term, [{Key, Value}]}]).
 
-hits_from_result({ok, {_, _, _, JSON}}) ->
-    case lists:keyfind(<<"hits">>, 1, jsx:decode(JSON)) of
+decode_body(Body) when is_binary(Body) ->
+    jsx:decode(Body);
+decode_body(Body) -> Body.
+
+hits_from_result(Result) ->
+    {body, Body} = lists:keyfind(body, 1, Result),
+    DBody = decode_body(Body),
+    case lists:keyfind(<<"hits">>, 1, DBody) of
         false -> throw(false);
-        {_, Result} ->
-            case lists:keyfind(<<"total">>, 1, Result) of
+        {_, Value} ->
+            case lists:keyfind(<<"total">>, 1, Value) of
                 false -> throw(false);
                 {_, Data} -> Data
             end
     end.
 
-docs_from_result({ok, {_, _, _, JSON}}) ->
-    case lists:keyfind(<<"docs">>, 1, jsx:decode(JSON)) of
+docs_from_result(Result) ->
+    {body, Body} = lists:keyfind(body, 1, Result),
+    DBody = decode_body(Body),
+    case lists:keyfind(<<"docs">>, 1, DBody) of
         false -> throw(false);
-        {_, Result} ->
-            length(Result)
+        {_, Value} ->
+            length(Value)
     end.
 
 
-count_from_result({ok, {_, _, _, JSON}}) ->
-    case lists:keyfind(<<"count">>, 1, jsx:decode(JSON)) of
+count_from_result(Result) ->
+    {body, Body} = lists:keyfind(body, 1, Result),
+    DBody = decode_body(Body),
+    case lists:keyfind(<<"count">>, 1, DBody) of
         false -> throw(false);
-        {_, Data} -> Data
+        {_, Value} -> Value
     end.
 
 t_insert_doc(Config) ->
@@ -860,7 +930,7 @@ process_t_is_doc(ServerRef, Config) ->
     Type = ?config(type, Config),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                true = erlasticsearch:is_doc(ServerRef, Index, Type, BX)
+                true = true_response(erlasticsearch:is_doc(ServerRef, Index, Type, BX))
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
     process_t_delete_doc(ServerRef, Config).
 
@@ -913,7 +983,7 @@ are_indices_1(ServerRef, Index) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
-                true = erlasticsearch:is_index(ServerRef, FullIndex)
+                true = true_response(erlasticsearch:is_index(ServerRef, FullIndex))
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
 are_indices_all(ServerRef, Index) ->
@@ -922,7 +992,7 @@ are_indices_all(ServerRef, Index) ->
                 BX = list_to_binary(integer_to_list(X)),
                 erlasticsearch:join([Index, BX], <<"_">>)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    true = erlasticsearch:is_index(ServerRef, FullIndexList).
+    true = true_response(erlasticsearch:is_index(ServerRef, FullIndexList)).
 
 delete_all_indices(ServerRef, Config) ->
     Index = ?config(index, Config),
@@ -939,9 +1009,9 @@ delete_all_indices(ServerRef, Index, CheckIndex) ->
 
                 case CheckIndex of
                     true ->
-                        case erlasticsearch:is_index(ServerRef, FullIndex) of
+                        case true_response(erlasticsearch:is_index(ServerRef, FullIndex)) of
                             % Only delete if the index exists
-                            true -> 
+                            true ->
                                 delete_this_index(ServerRef, FullIndex);
                             false ->
                                 true
@@ -988,6 +1058,13 @@ random_name(Name) ->
     Id = list_to_binary(integer_to_list(random:uniform(999999999))),
     <<Name/binary, Id/binary>>.
 
+true_response(Response) ->
+    case lists:keyfind(result, 1, Response) of
+        {result, true} -> true;
+        {result, <<"true">>} -> true;
+        _ -> false
+    end.
+
 setup_environment() ->
     random:seed(erlang:now()).
 
@@ -1002,6 +1079,8 @@ setup_lager() ->
 start(Config) ->
     ClientName = ?config(client_name, Config),
     PoolName = ?config(pool_name, Config),
+    ConnectionOptions = ?config(connection_options, Config),
+    PoolOptions = ?config(pool_options, Config),
     application:start(kernel),
     application:start(stdlib),
     application:start(crypto),
@@ -1011,8 +1090,8 @@ start(Config) ->
     application:start(jsx),
     application:start(poolboy),
     application:start(erlasticsearch),
-    erlasticsearch:start_client(ClientName),
-    erlasticsearch:start_pool(PoolName)
+    erlasticsearch:start_client(ClientName, ConnectionOptions),
+    erlasticsearch:start_pool(PoolName, PoolOptions, ConnectionOptions)
     .
 
 stop(Config) ->
