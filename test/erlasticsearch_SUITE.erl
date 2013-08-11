@@ -673,8 +673,8 @@ process_t_open_index(ServerRef, Config) ->
         Index = ?config(index, Config),
         Response = erlasticsearch:close_index(ServerRef, Index),
         true = erlasticsearch:is_200(Response),
-        Response = erlasticsearch:open_index(ServerRef, Index),
-        true = erlasticsearch:is_200(Response),
+        Response1 = erlasticsearch:open_index(ServerRef, Index),
+        true = erlasticsearch:is_200(Response1),
         process_t_delete_doc(ServerRef, Config).
         
 
@@ -1027,7 +1027,7 @@ delete_this_index(ServerRef, Index) ->
     true = erlasticsearch:is_200(Response).
 
 json_document(N) ->
-    jsx:to_json(document(N)).
+    jsx:encode(document(N)).
 
 document(N) ->
     lists:foldl(fun(X, Acc) -> 
@@ -1069,10 +1069,7 @@ setup_environment() ->
     random:seed(erlang:now()).
 
 setup_lager() ->
-    application:start(crypto),
-    application:start(compiler),
-    application:start(syntax_tools),
-    application:start(lager),
+    reltool_util:application_start(lager),
     lager:set_loglevel(lager_console_backend, debug),
     lager:set_loglevel(lager_file_backend, "console.log", debug).
 
@@ -1081,15 +1078,8 @@ start(Config) ->
     PoolName = ?config(pool_name, Config),
     ConnectionOptions = ?config(connection_options, Config),
     PoolOptions = ?config(pool_options, Config),
-    application:start(kernel),
-    application:start(stdlib),
-    application:start(crypto),
-    application:start(compiler),
-    application:start(syntax_tools),
-    application:start(sasl),
-    application:start(jsx),
-    application:start(poolboy),
-    application:start(erlasticsearch),
+    reltool_util:application_start(jsx),
+    reltool_util:application_start(erlasticsearch),
     erlasticsearch:start_client(ClientName, ConnectionOptions),
     erlasticsearch:start_pool(PoolName, PoolOptions, ConnectionOptions)
     .
@@ -1099,12 +1089,6 @@ stop(Config) ->
     PoolName = ?config(pool_name, Config),
     erlasticsearch:stop_client(ClientName),
     erlasticsearch:stop_pool(PoolName),
+    reltool_util:application_stop(erlasticsearch),
+    reltool_util:application_stop(jsx),
     ok.
-%    application:stop(jsx),
-%    application:stop(sasl),
-%    application:stop(syntax_tools),
-%    application:stop(compiler),
-%    application:stop(crypto),
-%    application:stop(stdlib),
-%    application:stop(kernel).
-
