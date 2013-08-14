@@ -119,8 +119,8 @@ end_per_group(_GroupName, Config) ->
     ClientName = ?config(client_name, Config),
     Index = ?config(index, Config),
     IndexWithShards = ?config(index_with_shards, Config),
-    delete_all_indices(ClientName, Index, true),
-    delete_all_indices(ClientName, IndexWithShards, true),
+    delete_all_indices(ClientName, Index),
+    delete_all_indices(ClientName, IndexWithShards),
     stop(Config),
     Config1 = update_config(Config),
     {save_config, Config1}.
@@ -256,7 +256,7 @@ process_t_status_1(ServerRef, Config) ->
     Index = ?config(index, Config),
     create_indices(ServerRef, Index),
     check_status_1(ServerRef, Index),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_status_all(Config) ->
     ClientName = ?config(client_name, Config),
@@ -268,7 +268,7 @@ process_t_status_all(ServerRef, Config) ->
     Index = ?config(index, Config),
     create_indices(ServerRef, Index),
     check_status_all(ServerRef, Index),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_clear_cache_1(Config) ->
     ClientName = ?config(client_name, Config),
@@ -280,7 +280,7 @@ process_t_clear_cache_1(ServerRef, Config) ->
     Index = ?config(index, Config),
     create_indices(ServerRef, Index),
     clear_cache_1(ServerRef, Index),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_clear_cache_list(Config) ->
     ClientName = ?config(client_name, Config),
@@ -292,7 +292,7 @@ process_t_clear_cache_list(ServerRef, Config) ->
     Index = ?config(index, Config),
     create_indices(ServerRef, Index),
     clear_cache_list(ServerRef, Index),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_clear_cache_all(Config) ->
     ClientName = ?config(client_name, Config),
@@ -304,7 +304,7 @@ process_t_clear_cache_all(ServerRef, Config) ->
     Index = ?config(index, Config),
     create_indices(ServerRef, Index),
     clear_cache_all(ServerRef, Index),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_is_index_1(Config) ->
     ClientName = ?config(client_name, Config),
@@ -316,7 +316,7 @@ process_t_is_index_1(ServerRef, Config) ->
     Index = ?config(index, Config),
     create_indices(ServerRef, Index),
     are_indices_1(ServerRef, Index),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_is_index_all(Config) ->
     ClientName = ?config(client_name, Config),
@@ -328,7 +328,7 @@ process_t_is_index_all(ServerRef, Config) ->
     Index = ?config(index, Config),
     create_indices(ServerRef, Index),
     are_indices_all(ServerRef, Index),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_is_type_1(Config) ->
     ClientName = ?config(client_name, Config),
@@ -457,7 +457,7 @@ t_create_index(Config) ->
 process_t_create_index(ServerRef, Config) ->
     Index = ?config(index, Config),
     create_indices(ServerRef, Index),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_create_index_with_shards(Config) ->
     ClientName = ?config(client_name, Config),
@@ -468,7 +468,7 @@ t_create_index_with_shards(Config) ->
 process_t_create_index_with_shards(ServerRef, Config) ->
     Index = ?config(index_with_shards, Config),
     create_indices(ServerRef, Index),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_flush_1(Config) ->
     ClientName = ?config(client_name, Config),
@@ -485,7 +485,7 @@ process_t_flush_1(ServerRef, Config) ->
                 Response = erlasticsearch:flush(ServerRef, FullIndex),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_flush_list(Config) ->
     ClientName = ?config(client_name, Config),
@@ -503,7 +503,7 @@ process_t_flush_list(ServerRef, Config) ->
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     Response = erlasticsearch:flush(ServerRef, Indexes),
     true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_flush_all(Config) ->
     ClientName = ?config(client_name, Config),
@@ -516,7 +516,7 @@ process_t_flush_all(ServerRef, Config) ->
     create_indices(ServerRef, Index),
     Response = erlasticsearch:flush(ServerRef),
     true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_refresh_1(Config) ->
     ClientName = ?config(client_name, Config),
@@ -533,7 +533,7 @@ process_t_refresh_1(ServerRef, Config) ->
                 Response = erlasticsearch:refresh(ServerRef, FullIndex),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_refresh_list(Config) ->
     ClientName = ?config(client_name, Config),
@@ -551,7 +551,7 @@ process_t_refresh_list(ServerRef, Config) ->
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     Response = erlasticsearch:refresh(ServerRef, Indexes),
     true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_refresh_all(Config) ->
     ClientName = ?config(client_name, Config),
@@ -564,7 +564,7 @@ process_t_refresh_all(ServerRef, Config) ->
     create_indices(ServerRef, Index),
     Response = erlasticsearch:refresh(ServerRef),
     true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_optimize_1(Config) ->
     ClientName = ?config(client_name, Config),
@@ -581,7 +581,7 @@ process_t_optimize_1(ServerRef, Config) ->
                 Response = erlasticsearch:optimize(ServerRef, FullIndex),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_optimize_list(Config) ->
     ClientName = ?config(client_name, Config),
@@ -599,7 +599,7 @@ process_t_optimize_list(ServerRef, Config) ->
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     Response = erlasticsearch:optimize(ServerRef, Indexes),
     true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_optimize_all(Config) ->
     ClientName = ?config(client_name, Config),
@@ -612,7 +612,7 @@ process_t_optimize_all(ServerRef, Config) ->
     create_indices(ServerRef, Index),
     Response = erlasticsearch:optimize(ServerRef),
     true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_segments_1(Config) ->
     ClientName = ?config(client_name, Config),
@@ -629,7 +629,7 @@ process_t_segments_1(ServerRef, Config) ->
                 Response = erlasticsearch:segments(ServerRef, FullIndex),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_segments_list(Config) ->
     ClientName = ?config(client_name, Config),
@@ -647,7 +647,7 @@ process_t_segments_list(ServerRef, Config) ->
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     Response = erlasticsearch:segments(ServerRef, Indexes),
     true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_segments_all(Config) ->
     ClientName = ?config(client_name, Config),
@@ -660,7 +660,7 @@ process_t_segments_all(ServerRef, Config) ->
     create_indices(ServerRef, Index),
     Response = erlasticsearch:segments(ServerRef),
     true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index, true).
+    delete_all_indices(ServerRef, Index).
 
 t_open_index(Config) ->
     ClientName = ?config(client_name, Config),
@@ -994,37 +994,28 @@ are_indices_all(ServerRef, Index) ->
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
     true = true_response(erlasticsearch:is_index(ServerRef, FullIndexList)).
 
-delete_all_indices(ServerRef, Config) ->
+delete_all_indices(ServerRef, Config) when is_list(Config) ->
     Index = ?config(index, Config),
     IndexWithShards = erlasticsearch:join([Index, <<"with_shards">>], <<"_">>),
-    delete_all_indices(ServerRef, Index, true),
-    delete_all_indices(ServerRef, IndexWithShards, true),
-    erlasticsearch:flush(ServerRef).
+    delete_all_indices(ServerRef, Index),
+    delete_all_indices(ServerRef, IndexWithShards),
+    erlasticsearch:flush(ServerRef);
 
 % Optionally check to see if the indices exist before trying to delete
-delete_all_indices(ServerRef, Index, CheckIndex) ->
+delete_all_indices(ServerRef, Index) when is_binary(Index) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
-
-                case CheckIndex of
-                    true ->
-                        case true_response(erlasticsearch:is_index(ServerRef, FullIndex)) of
-                            % Only delete if the index exists
-                            true ->
-                                delete_this_index(ServerRef, FullIndex);
-                            false ->
-                                true
-                        end;
-                    false -> 
-                        % Blindly Delete the indices
-                        delete_this_index(ServerRef, FullIndex)
-                end
+                delete_this_index(ServerRef, FullIndex)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
 delete_this_index(ServerRef, Index) ->
-    Response = erlasticsearch:delete_index(ServerRef, Index),
-    true = erlasticsearch:is_200(Response).
+    case true_response(erlasticsearch:is_index(ServerRef, Index)) of
+        true ->
+            Response = erlasticsearch:delete_index(ServerRef, Index),
+            true = erlasticsearch:is_200(Response);
+        false -> true
+    end.
 
 json_document(N) ->
     jsx:encode(document(N)).
