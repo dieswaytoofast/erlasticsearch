@@ -229,7 +229,7 @@ create_index(ServerRef, Index) when is_binary(Index) ->
 
 %% @doc Create an index in the ElasticSearch cluster
 -spec create_index(server_ref(), index(), doc()) -> response().
-create_index(ServerRef, Index, Doc) when is_binary(Index), is_binary(Doc) ->
+create_index(ServerRef, Index, Doc) when is_binary(Index) andalso (is_binary(Doc) orelse is_list(Doc)) ->
     route_call(ServerRef, {create_index, Index, Doc}, infinity).
 
 %% @doc Delete all the indices in the ElasticSearch cluster
@@ -263,58 +263,58 @@ is_index(ServerRef, Indexes) when is_list(Indexes) ->
 
 %% @equiv count(ServerRef, ?ALL, [], Doc []).
 -spec count(server_ref(), doc()) -> response().
-count(ServerRef, Doc) when is_binary(Doc) ->
+count(ServerRef, Doc) when (is_binary(Doc) orelse is_list(Doc)) ->
     count(ServerRef, ?ALL, [], Doc, []).
 
 %% @equiv count(ServerRef, ?ALL, [], Doc, Params).
 -spec count(server_ref(), doc(), params()) -> response().
-count(ServerRef, Doc, Params) when is_binary(Doc), is_list(Params) ->
+count(ServerRef, Doc, Params) when (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     count(ServerRef, ?ALL, [], Doc, Params).
 
 %% @equiv count(ServerRef, Index, [], Doc, Params).
 -spec count(server_ref(), index() | [index()], doc(), params()) -> response().
-count(ServerRef, Index, Doc, Params) when is_binary(Index), is_binary(Doc), is_list(Params) ->
+count(ServerRef, Index, Doc, Params) when is_binary(Index) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     count(ServerRef, [Index], [], Doc, Params);
-count(ServerRef, Indexes, Doc, Params) when is_list(Indexes), is_binary(Doc), is_list(Params) ->
+count(ServerRef, Indexes, Doc, Params) when is_list(Indexes) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     count(ServerRef, Indexes, [], Doc, Params).
 
 %% @doc Get the number of matches for a query
 -spec count(server_ref(), index() | [index()], type() | [type()], doc(), params()) -> response().
-count(ServerRef, Index, Type, Doc, Params) when is_binary(Index), is_binary(Type), is_binary(Doc), is_list(Params) ->
+count(ServerRef, Index, Type, Doc, Params) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     count(ServerRef, [Index], [Type], Doc, Params);
-count(ServerRef, Indexes, Type, Doc, Params) when is_list(Indexes), is_binary(Type), is_binary(Doc), is_list(Params) ->
+count(ServerRef, Indexes, Type, Doc, Params) when is_list(Indexes) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     count(ServerRef, Indexes, [Type], Doc, Params);
-count(ServerRef, Index, Types, Doc, Params) when is_binary(Index), is_list(Types), is_binary(Doc), is_list(Params) ->
+count(ServerRef, Index, Types, Doc, Params) when is_binary(Index) andalso is_list(Types) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     count(ServerRef, [Index], Types, Doc, Params);
-count(ServerRef, Indexes, Types, Doc, Params) when is_list(Indexes), is_list(Types), is_binary(Doc), is_list(Params) ->
+count(ServerRef, Indexes, Types, Doc, Params) when is_list(Indexes) andalso is_list(Types) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     route_call(ServerRef, {count, Indexes, Types, Doc, Params}, infinity).
 
 %% @equiv delete_by_query(ServerRef, ?ALL, [], Doc []).
 -spec delete_by_query(server_ref(), doc()) -> response().
-delete_by_query(ServerRef, Doc) when is_binary(Doc) ->
+delete_by_query(ServerRef, Doc) when (is_binary(Doc) orelse is_list(Doc)) ->
     delete_by_query(ServerRef, ?ALL, [], Doc, []).
 
 %% @equiv delete_by_query(ServerRef, ?ALL, [], Doc, Params).
 -spec delete_by_query(server_ref(), doc(), params()) -> response().
-delete_by_query(ServerRef, Doc, Params) when is_binary(Doc), is_list(Params) ->
+delete_by_query(ServerRef, Doc, Params) when (is_binary(Doc) orelse is_list(Doc)), is_list(Params) ->
     delete_by_query(ServerRef, ?ALL, [], Doc, Params).
 
 %% @equiv delete_by_query(ServerRef, Index, [], Doc, Params).
 -spec delete_by_query(server_ref(), index() | [index()], doc(), params()) -> response().
-delete_by_query(ServerRef, Index, Doc, Params) when is_binary(Index), is_binary(Doc), is_list(Params) ->
+delete_by_query(ServerRef, Index, Doc, Params) when is_binary(Index) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     delete_by_query(ServerRef, [Index], [], Doc, Params);
-delete_by_query(ServerRef, Indexes, Doc, Params) when is_list(Indexes), is_binary(Doc), is_list(Params) ->
+delete_by_query(ServerRef, Indexes, Doc, Params) when is_list(Indexes) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     delete_by_query(ServerRef, Indexes, [], Doc, Params).
 
 %% @doc Get the number of matches for a query
 -spec delete_by_query(server_ref(), index() | [index()], type() | [type()], doc(), params()) -> response().
-delete_by_query(ServerRef, Index, Type, Doc, Params) when is_binary(Index), is_binary(Type), is_binary(Doc), is_list(Params) ->
+delete_by_query(ServerRef, Index, Type, Doc, Params) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     delete_by_query(ServerRef, [Index], [Type], Doc, Params);
-delete_by_query(ServerRef, Indexes, Type, Doc, Params) when is_list(Indexes), is_binary(Type), is_binary(Doc), is_list(Params) ->
+delete_by_query(ServerRef, Indexes, Type, Doc, Params) when is_list(Indexes) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     delete_by_query(ServerRef, Indexes, [Type], Doc, Params);
-delete_by_query(ServerRef, Index, Types, Doc, Params) when is_binary(Index), is_list(Types), is_binary(Doc), is_list(Params) ->
+delete_by_query(ServerRef, Index, Types, Doc, Params) when is_binary(Index) andalso is_list(Types) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     delete_by_query(ServerRef, [Index], Types, Doc, Params);
-delete_by_query(ServerRef, Indexes, Types, Doc, Params) when is_list(Indexes), is_list(Types), is_binary(Doc), is_list(Params) ->
+delete_by_query(ServerRef, Indexes, Types, Doc, Params) when is_list(Indexes) andalso is_list(Types) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     route_call(ServerRef, {delete_by_query, Indexes, Types, Doc, Params}, infinity).
 
 %% @doc Check if a type exists in an index/indices in the ElasticSearch cluster
@@ -330,12 +330,12 @@ is_type(ServerRef, Indexes, Types) when is_list(Indexes), is_list(Types) ->
 
 %% @equiv insert_doc(Index, Type, Id, Doc, []).
 -spec insert_doc(server_ref(), index(), type(), id(), doc()) -> response().
-insert_doc(ServerRef, Index, Type, Id, Doc) when is_binary(Index), is_binary(Type), is_binary(Doc) ->
+insert_doc(ServerRef, Index, Type, Id, Doc) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) ->
     insert_doc(ServerRef, Index, Type, Id, Doc, []).
 
 %% @doc Insert a doc into the ElasticSearch cluster
 -spec insert_doc(server_ref(), index(), type(), id(), doc(), params()) -> response().
-insert_doc(ServerRef, Index, Type, Id, Doc, Params) when is_binary(Index), is_binary(Type), is_binary(Doc), is_list(Params) ->
+insert_doc(ServerRef, Index, Type, Id, Doc, Params) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     route_call(ServerRef, {insert_doc, Index, Type, Id, Doc, Params}, infinity).
 
 %% @doc Checks to see if the doc exists
@@ -355,17 +355,17 @@ get_doc(ServerRef, Index, Type, Id, Params) when is_binary(Index), is_binary(Typ
 
 %% @equiv mget_doc(ServerRef, <<>>, <<>>, Doc)
 -spec mget_doc(server_ref(), doc()) -> response().
-mget_doc(ServerRef, Doc) when is_binary(Doc) ->
+mget_doc(ServerRef, Doc) when (is_binary(Doc) orelse is_list(Doc)) ->
     mget_doc(ServerRef, <<>>, <<>>, Doc).
 
 %% @equiv mget_doc(ServerRef, Index, <<>>, Doc)
 -spec mget_doc(server_ref(), index(), doc()) -> response().
-mget_doc(ServerRef, Index, Doc) when is_binary(Index), is_binary(Doc)->
+mget_doc(ServerRef, Index, Doc) when is_binary(Index) andalso (is_binary(Doc) orelse is_list(Doc))->
     mget_doc(ServerRef, Index, <<>>, Doc).
 
 %% @doc Get a doc from the ElasticSearch cluster
 -spec mget_doc(server_ref(), index(), type(), doc()) -> response().
-mget_doc(ServerRef, Index, Type, Doc) when is_binary(Index), is_binary(Type), is_binary(Doc)->
+mget_doc(ServerRef, Index, Type, Doc) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc))->
     route_call(ServerRef, {mget_doc, Index, Type, Doc}, infinity).
 
 %% @equiv delete_doc(ServerRef, Index, Type, Id, []).
@@ -379,11 +379,11 @@ delete_doc(ServerRef, Index, Type, Id, Params) when is_binary(Index), is_binary(
 
 %% @equiv search(ServerRef, Index, Type, Doc, []).
 -spec search(server_ref(), index(), type(), doc()) -> response().
-search(ServerRef, Index, Type, Doc) when is_binary(Index), is_binary(Type), is_binary(Doc)->
+search(ServerRef, Index, Type, Doc) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc))->
     search(ServerRef, Index, Type, Doc, []).
 %% @doc Search for docs in the ElasticSearch cluster
 -spec search(server_ref(), index(), type(), doc(), params()) -> response().
-search(ServerRef, Index, Type, Doc, Params) when is_binary(Index), is_binary(Type), is_binary(Doc), is_list(Params) ->
+search(ServerRef, Index, Type, Doc, Params) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     route_call(ServerRef, {search, Index, Type, Doc, Params}, infinity).
 
 %% @equiv refresh(ServerRef, ?ALL).
@@ -690,7 +690,14 @@ process_request(Connection, Request, State = #state{binary_response = BinaryResp
 
 -spec do_request(connection(), request(), #state{}) -> {connection(), response()}.
 do_request(Connection, {Function, Args}, _State) ->
-    try thrift_client:call(Connection, Function, Args) of
+    Args2 =
+        case Args of
+            [#restRequest{body=Body}] when is_binary(Body) ->
+                Args;
+            [A=#restRequest{body=Body}] when is_list(Body) ->
+                [A#restRequest{body=jsx:encode(Body)}]
+        end,
+    try thrift_client:call(Connection, Function, Args2) of
         {Connection1, Response = {ok, _}} ->
             {Connection1, Response};
         {Connection1, Response = {error, _}} ->
@@ -755,8 +762,8 @@ rest_request_status(Index) when is_list(Index) ->
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri}.
 
-rest_request_create_index(Index, Doc) when is_binary(Index),
-                                              is_binary(Doc) ->
+rest_request_create_index(Index, Doc) when is_binary(Index) andalso
+                                              (is_binary(Doc) orelse is_list(Doc)) ->
     #restRequest{method = ?elasticsearch_Method_PUT,
                  uri = Index,
                  body = Doc}.
@@ -776,9 +783,9 @@ rest_request_close_index(Index) when is_binary(Index) ->
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri}.
 
-rest_request_count(Index, Type, Doc, Params) when is_list(Index),
-                                        is_list(Type),
-                                        is_binary(Doc),
+rest_request_count(Index, Type, Doc, Params) when is_list(Index) andalso
+                                        is_list(Type) andalso
+                                        (is_binary(Doc) orelse is_list(Doc)) andalso
                                         is_list(Params) ->
     IndexList = join(Index, <<",">>),
     TypeList = join(Type, <<",">>),
@@ -787,9 +794,9 @@ rest_request_count(Index, Type, Doc, Params) when is_list(Index),
                  uri = Uri,
                  body = Doc}.
 
-rest_request_delete_by_query(Index, Type, Doc, Params) when is_list(Index),
-                                        is_list(Type),
-                                        is_binary(Doc),
+rest_request_delete_by_query(Index, Type, Doc, Params) when is_list(Index) andalso
+                                        is_list(Type) andalso
+                                        (is_binary(Doc) orelse is_list(Doc)) andalso
                                         is_list(Params) ->
     IndexList = join(Index, <<",">>),
     TypeList = join(Type, <<",">>),
@@ -811,19 +818,19 @@ rest_request_is_type(Index, Type) when is_list(Index),
     #restRequest{method = ?elasticsearch_Method_HEAD,
                  uri = Uri}.
 
-rest_request_insert_doc(Index, Type, undefined, Doc, Params) when is_binary(Index),
-                                                      is_binary(Type),
-                                                      is_binary(Doc),
+rest_request_insert_doc(Index, Type, undefined, Doc, Params) when is_binary(Index) andalso
+                                                      is_binary(Type) andalso
+                                                      (is_binary(Doc) orelse is_list(Doc)) andalso
                                                       is_list(Params) ->
     Uri = make_uri([Index, Type], Params),
     #restRequest{method = ?elasticsearch_Method_POST,
                  uri = Uri,
                  body = Doc};
 
-rest_request_insert_doc(Index, Type, Id, Doc, Params) when is_binary(Index),
-                                                      is_binary(Type),
-                                                      is_binary(Id),
-                                                      is_binary(Doc),
+rest_request_insert_doc(Index, Type, Id, Doc, Params) when is_binary(Index) andalso
+                                                      is_binary(Type) andalso
+                                                      is_binary(Id) andalso
+                                                      (is_binary(Doc) orelse is_list(Doc)) andalso
                                                       is_list(Params) ->
     Uri = make_uri([Index, Type, Id], Params),
     #restRequest{method = ?elasticsearch_Method_PUT,
@@ -845,9 +852,9 @@ rest_request_get_doc(Index, Type, Id, Params) when is_binary(Index),
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri}.
 
-rest_request_mget_doc(Index, Type, Doc) when is_binary(Index),
-                                                   is_binary(Type),
-                                                   is_binary(Doc) ->
+rest_request_mget_doc(Index, Type, Doc) when is_binary(Index) andalso
+                                                   is_binary(Type) andalso
+                                                   (is_binary(Doc) orelse is_list(Doc)) ->
     Uri = make_uri([Index, Type, ?MGET], []),
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri,
@@ -861,9 +868,9 @@ rest_request_delete_doc(Index, Type, Id, Params) when is_binary(Index),
     #restRequest{method = ?elasticsearch_Method_DELETE,
                  uri = Uri}.
 
-rest_request_search(Index, Type, Doc, Params) when is_binary(Index),
-                                                   is_binary(Type),
-                                                   is_binary(Doc),
+rest_request_search(Index, Type, Doc, Params) when is_binary(Index) andalso
+                                                   is_binary(Type) andalso
+                                                   (is_binary(Doc) orelse is_list(Doc)) andalso
                                                    is_list(Params) ->
     Uri = make_uri([Index, Type, ?SEARCH], Params),
     #restRequest{method = ?elasticsearch_Method_GET,
