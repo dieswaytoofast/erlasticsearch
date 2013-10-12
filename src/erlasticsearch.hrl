@@ -13,8 +13,10 @@
 -include("elasticsearch_types.hrl").
 
 
--type error()           :: {error, Reason :: term()}.
+-type error()           :: {error, Reason :: any()}.
+-type exception()       :: {exception, Reason :: any()}.
 -type method()          :: atom().
+-type rest_response()   :: #restResponse{}.
 -type response()        :: [tuple()] | error().
 -type request()         :: #restRequest{}.
 -type connection()      :: any().
@@ -22,7 +24,7 @@
 -type index()           :: binary().
 -type type()            :: binary().
 -type id()              :: binary() | undefined.
--type doc()             :: binary().
+-type doc()             :: binary() | list().
 -type params()          :: [tuple()].
 -type client_name()     :: binary().
 -type pool_name()       :: binary().
@@ -67,6 +69,9 @@
 -define(OPTIMIZE, <<"_optimize">>).
 -define(SEGMENTS, <<"_segments">>).
 -define(CLEAR_CACHE, <<"_cache/clear">>).
+-define(MAPPING, <<"_mapping">>).
+-define(ALIASES, <<"_aliases">>).
+-define(ALIAS, <<"_alias">>).
 
 % Shortcuts
 -define(ALL, <<"_all">>).

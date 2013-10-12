@@ -22,6 +22,10 @@
 -define(NUMTESTS, 500).
 -define(DOCUMENT_DEPTH, 5).
 -define(THREE_SHARDS, <<"{\"settings\":{\"number_of_shards\":3}}">>).
+-define(MAPPING_KEY, <<"some_type">>).
+-define(MAPPING_VALUE, <<"boolean">>).
+-define(MAPPING_DOC(Type), [{Type, [{<<"properties">>, [{?MAPPING_KEY, [{<<"type">>, ?MAPPING_VALUE}]}]}]}]).
+-define(ALIASES_DOC(Index, Alias), [{<<"actions">>, [[{<<"add">>, [{<<"index">>, Index}, {<<"alias">>, Alias}]}]]}]).
 
 
 suite() ->
@@ -142,6 +146,22 @@ groups() ->
         t_create_index_with_shards,
         t_open_index
       ]},
+
+    {crud_mapping, [{repeat, 5}],
+       [t_put_mapping,
+        t_get_mapping,
+        t_delete_mapping
+      ]},
+
+    {aliases, [{repeat, 5}],
+       [t_aliases,
+        t_insert_alias_1,
+        t_insert_alias_2,
+        t_delete_alias,
+        t_is_alias,
+        t_get_alias
+      ]},
+
      {index_helpers, [],
         [t_flush_1,
         t_flush_list,
@@ -201,7 +221,9 @@ all() ->
         {group, search},
         {group, index_helpers},
         {group, cluster_helpers},
-        {group, doc_helpers}
+        {group, doc_helpers},
+        {group, crud_mapping},
+        {group, aliases}
     ].
 
 t_health(Config) ->
@@ -458,6 +480,171 @@ process_t_create_index(ServerRef, Config) ->
     Index = ?config(index, Config),
     create_indices(ServerRef, Index),
     delete_all_indices(ServerRef, Index).
+
+% Also deletes indices
+t_put_mapping(Config) ->
+    ClientName = ?config(client_name, Config),
+    Pool = ?config(pool, Config),
+    process_t_put_mapping(Pool, Config),
+    process_t_put_mapping(ClientName, Config).
+
+process_t_put_mapping(ServerRef, Config) ->
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    erlasticsearch:create_index(ServerRef, Index),
+    MappingDoc = jsx:encode(?MAPPING_DOC(Type)),
+    Response = erlasticsearch:put_mapping(ServerRef, Index, Type, MappingDoc),
+    true = erlasticsearch:is_200(Response),
+    delete_this_index(ServerRef, Index).
+
+t_get_mapping(Config) ->
+    ClientName = ?config(client_name, Config),
+    Pool = ?config(pool, Config),
+    process_t_get_mapping(Pool, Config),
+    process_t_get_mapping(ClientName, Config).
+
+process_t_get_mapping(ServerRef, Config) ->
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    erlasticsearch:create_index(ServerRef, Index),
+    MappingDoc = jsx:encode(?MAPPING_DOC(Type)),
+    Response1 = erlasticsearch:put_mapping(ServerRef, Index, Type, MappingDoc),
+    true = erlasticsearch:is_200(Response1),
+    Response2 = erlasticsearch:get_mapping(ServerRef, Index, Type),
+    validate_mapping(Type, Response2),
+    delete_this_index(ServerRef, Index).
+
+validate_mapping(Type, Response) ->
+    {body, Data1} = lists:keyfind(body, 1, Response),
+    Data2 = case is_binary(Data1) of
+        true ->
+            jsx:decode(Data1);
+        false ->
+            Data1
+    end,
+    {Type, Data3} = lists:keyfind(Type, 1, Data2),
+    {<<"properties">>, Data4} = lists:keyfind(<<"properties">>, 1, Data3),
+    {?MAPPING_KEY, [{<<"type">>, ?MAPPING_VALUE}]} = lists:keyfind(?MAPPING_KEY, 1, Data4).
+
+t_delete_mapping(Config) ->
+    ClientName = ?config(client_name, Config),
+    Pool = ?config(pool, Config),
+    process_t_delete_mapping(Pool, Config),
+    process_t_delete_mapping(ClientName, Config).
+
+process_t_delete_mapping(ServerRef, Config) ->
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    erlasticsearch:create_index(ServerRef, Index),
+    MappingDoc = jsx:encode(?MAPPING_DOC(Type)),
+    Response1 = erlasticsearch:put_mapping(ServerRef, Index, Type, MappingDoc),
+    true = erlasticsearch:is_200(Response1),
+    Response2 = erlasticsearch:delete_mapping(ServerRef, Index, Type),
+    true = erlasticsearch:is_200(Response2),
+    delete_this_index(ServerRef, Index).
+
+t_aliases(Config) ->
+    ClientName = ?config(client_name, Config),
+    Pool = ?config(pool, Config),
+    process_t_aliases(Pool, Config),
+    process_t_aliases(ClientName, Config).
+
+process_t_aliases(ServerRef, Config) ->
+    Index = ?config(index, Config),
+    Alias = random_name(Index),
+    erlasticsearch:create_index(ServerRef, Index),
+    AliasesDoc = ?ALIASES_DOC(Index, Alias),
+    Response = erlasticsearch:aliases(ServerRef, AliasesDoc),
+    true = erlasticsearch:is_200(Response),
+    delete_this_index(ServerRef, Index).
+
+t_insert_alias_1(Config) ->
+    ClientName = ?config(client_name, Config),
+    Pool = ?config(pool, Config),
+    process_t_insert_alias_1(Pool, Config),
+    process_t_insert_alias_1(ClientName, Config).
+
+process_t_insert_alias_1(ServerRef, Config) ->
+    Index = ?config(index, Config),
+    Alias = random_name(Index),
+    erlasticsearch:create_index(ServerRef, Index),
+    Response = erlasticsearch:insert_alias(ServerRef, Index, Alias),
+    true = erlasticsearch:is_200(Response),
+    delete_this_index(ServerRef, Index).
+
+t_insert_alias_2(Config) ->
+    ClientName = ?config(client_name, Config),
+    Pool = ?config(pool, Config),
+    process_t_insert_alias_2(Pool, Config),
+    process_t_insert_alias_2(ClientName, Config).
+
+process_t_insert_alias_2(ServerRef, Config) ->
+    Index = ?config(index, Config),
+    Alias = random_name(Index),
+    erlasticsearch:create_index(ServerRef, Index),
+    Params = [{<<"routing">>, <<"1">>}],
+    Response = erlasticsearch:insert_alias(ServerRef, Index, Alias, Params),
+    true = erlasticsearch:is_200(Response),
+    delete_this_index(ServerRef, Index).
+
+t_delete_alias(Config) ->
+    ClientName = ?config(client_name, Config),
+    Pool = ?config(pool, Config),
+    process_t_delete_alias(Pool, Config),
+    process_t_delete_alias(ClientName, Config).
+
+process_t_delete_alias(ServerRef, Config) ->
+    Index = ?config(index, Config),
+    Alias = random_name(Index),
+    erlasticsearch:create_index(ServerRef, Index),
+    Response1 = erlasticsearch:insert_alias(ServerRef, Index, Alias),
+    true = erlasticsearch:is_200(Response1),
+    Response2 = erlasticsearch:delete_alias(ServerRef, Index, Alias),
+    true = erlasticsearch:is_200(Response2),
+    delete_this_index(ServerRef, Index).
+
+t_is_alias(Config) ->
+    ClientName = ?config(client_name, Config),
+    Pool = ?config(pool, Config),
+    process_t_is_alias(Pool, Config),
+    process_t_is_alias(ClientName, Config).
+
+process_t_is_alias(ServerRef, Config) ->
+    Index = ?config(index, Config),
+    Alias = random_name(Index),
+    erlasticsearch:create_index(ServerRef, Index),
+    Response1 = erlasticsearch:insert_alias(ServerRef, Index, Alias),
+    true = erlasticsearch:is_200(Response1),
+    true = true_response(erlasticsearch:is_alias(ServerRef, Index, Alias)),
+    delete_this_index(ServerRef, Index).
+
+t_get_alias(Config) ->
+    ClientName = ?config(client_name, Config),
+    Pool = ?config(pool, Config),
+    process_t_get_alias(Pool, Config),
+    process_t_get_alias(ClientName, Config).
+
+process_t_get_alias(ServerRef, Config) ->
+    Index = ?config(index, Config),
+    Alias = random_name(Index),
+    erlasticsearch:create_index(ServerRef, Index),
+    Response1 = erlasticsearch:insert_alias(ServerRef, Index, Alias),
+    true = erlasticsearch:is_200(Response1),
+    Response2 = erlasticsearch:get_alias(ServerRef, Index, Alias),
+    validate_alias(Index, Alias, Response2),
+    delete_this_index(ServerRef, Index).
+
+validate_alias(Index, Alias, Response) ->
+    {body, Data1} = lists:keyfind(body, 1, Response),
+    Data2 = case is_binary(Data1) of
+        true ->
+            jsx:decode(Data1);
+        false ->
+            Data1
+    end,
+    {Index, Data3} = lists:keyfind(Index, 1, Data2),
+    {<<"aliases">>, Data4} = lists:keyfind(<<"aliases">>, 1, Data3),
+    {Alias, _} = lists:keyfind(Alias, 1, Data4).
 
 t_create_index_with_shards(Config) ->
     ClientName = ?config(client_name, Config),

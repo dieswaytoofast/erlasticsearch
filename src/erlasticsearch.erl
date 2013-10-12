@@ -67,6 +67,17 @@
 
 -export([is_200/1, is_200_or_201/1]).
 
+% Mapping CRUD
+-export([put_mapping/4]).
+-export([get_mapping/3]).
+-export([delete_mapping/3]).
+
+% ALIASES CRUD
+-export([aliases/2]).
+-export([insert_alias/3, insert_alias/4]).
+-export([delete_alias/3]).
+-export([is_alias/3]).
+-export([get_alias/3]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -328,7 +339,7 @@ is_type(ServerRef, Index, Types) when is_binary(Index), is_list(Types) ->
 is_type(ServerRef, Indexes, Types) when is_list(Indexes), is_list(Types) ->
     route_call(ServerRef, {is_type, Indexes, Types}, infinity).
 
-%% @equiv insert_doc(Index, Type, Id, Doc, []).
+%% @equiv insert_doc(ServerRef, Index, Type, Id, Doc, []).
 -spec insert_doc(server_ref(), index(), type(), id(), doc()) -> response().
 insert_doc(ServerRef, Index, Type, Id, Doc) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) ->
     insert_doc(ServerRef, Index, Type, Id, Doc, []).
@@ -457,6 +468,57 @@ clear_cache(ServerRef, Index, Params) when is_binary(Index), is_list(Params) ->
     clear_cache(ServerRef, [Index], Params);
 clear_cache(ServerRef, Indexes, Params) when is_list(Indexes), is_list(Params) ->
     route_call(ServerRef, {clear_cache, Indexes, Params}, infinity).
+
+
+%% @doc Insert a mapping into an ElasticSearch index
+-spec put_mapping(server_ref(), index() | [index()], type(), doc()) -> response().
+put_mapping(ServerRef, Index, Type, Doc) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) ->
+    put_mapping(ServerRef, [Index], Type, Doc);
+put_mapping(ServerRef, Indexes, Type, Doc) when is_list(Indexes) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) ->
+    route_call(ServerRef, {put_mapping, Indexes, Type, Doc}, infinity).
+
+%% @doc Get a mapping from an ElasticSearch index
+-spec get_mapping(server_ref(), index() | [index()], type()) -> response().
+get_mapping(ServerRef, Index, Type) when is_binary(Index) andalso is_binary(Type) ->
+    get_mapping(ServerRef, [Index], Type);
+get_mapping(ServerRef, Indexes, Type) when is_list(Indexes) andalso is_binary(Type) ->
+    route_call(ServerRef, {get_mapping, Indexes, Type}, infinity).
+
+%% @doc Delete a mapping from an ElasticSearch index
+-spec delete_mapping(server_ref(), index() | [index()], type()) -> response().
+delete_mapping(ServerRef, Index, Type) when is_binary(Index) andalso is_binary(Type) ->
+    delete_mapping(ServerRef, [Index], Type);
+delete_mapping(ServerRef, Indexes, Type) when is_list(Indexes) andalso is_binary(Type) ->
+    route_call(ServerRef, {delete_mapping, Indexes, Type}, infinity).
+
+%% @doc Operate on aliases (as compared to 'alias')
+-spec aliases(server_ref(), doc()) -> response().
+aliases(ServerRef, Doc) when (is_binary(Doc) orelse is_list(Doc)) ->
+    route_call(ServerRef, {aliases, Doc}, infinity).
+
+%% @doc Insert an alias (as compared to 'aliases')
+-spec insert_alias(server_ref(), index(), index()) -> response().
+insert_alias(ServerRef, Index, Alias) when is_binary(Index) andalso is_binary(Alias) ->
+    route_call(ServerRef, {insert_alias, Index, Alias}, infinity).
+%% @doc Insert an alias with options(as compared to 'aliases')
+-spec insert_alias(server_ref(), index(), index(), doc()) -> response().
+insert_alias(ServerRef, Index, Alias, Doc) when is_binary(Index) andalso is_binary(Alias) andalso (is_binary(Doc) orelse is_list(Doc)) ->
+    route_call(ServerRef, {insert_alias, Index, Alias, Doc}, infinity).
+
+%% @doc Delete an alias (as compared to 'aliases')
+-spec delete_alias(server_ref(), index(), index()) -> response().
+delete_alias(ServerRef, Index, Alias) when is_binary(Index) andalso is_binary(Alias) ->
+    route_call(ServerRef, {delete_alias, Index, Alias}, infinity).
+
+%% @doc Checks if an alias exists (Alias can be a string with a wildcard)
+-spec is_alias(server_ref(), index(), index()) -> response().
+is_alias(ServerRef, Index, Alias) when is_binary(Index) andalso is_binary(Alias) ->
+    route_call(ServerRef, {is_alias, Index, Alias}, infinity).
+
+%% @doc Gets an alias(or more, based on the string)
+-spec get_alias(server_ref(), index(), index()) -> response().
+get_alias(ServerRef, Index, Alias) when is_binary(Index) andalso is_binary(Alias) ->
+    route_call(ServerRef, {get_alias, Index, Alias}, infinity).
 
 %% @doc The official way to get a value from this application's env.
 %%      Will return Default if that key is unset.
@@ -637,6 +699,52 @@ handle_call({_Request = clear_cache, Index, Params}, _From, State = #state{conne
     {Connection1, Response} = process_request(Connection0, RestRequest, State),
     {reply, Response, State#state{connection = Connection1}};
 
+handle_call({_Request = put_mapping, Indexes, Type, Doc}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_put_mapping(Indexes, Type, Doc),
+    {Connection1, Response} = process_request(Connection0, RestRequest, State),
+    {reply, Response, State#state{connection = Connection1}};
+
+handle_call({_Request = get_mapping, Indexes, Type}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_get_mapping(Indexes, Type),
+    {Connection1, Response} = process_request(Connection0, RestRequest, State),
+    {reply, Response, State#state{connection = Connection1}};
+
+handle_call({_Request = delete_mapping, Indexes, Type}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_delete_mapping(Indexes, Type),
+    {Connection1, Response} = process_request(Connection0, RestRequest, State),
+    {reply, Response, State#state{connection = Connection1}};
+
+handle_call({_Request = aliases, Doc}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_aliases(Doc),
+    {Connection1, Response} = process_request(Connection0, RestRequest, State),
+    {reply, Response, State#state{connection = Connection1}};
+
+handle_call({_Request = insert_alias, Index, Alias}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_insert_alias(Index, Alias),
+    {Connection1, Response} = process_request(Connection0, RestRequest, State),
+    {reply, Response, State#state{connection = Connection1}};
+
+handle_call({_Request = insert_alias, Index, Alias, Doc}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_insert_alias(Index, Alias, Doc),
+    {Connection1, Response} = process_request(Connection0, RestRequest, State),
+    {reply, Response, State#state{connection = Connection1}};
+
+handle_call({_Request = delete_alias, Index, Alias}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_delete_alias(Index, Alias),
+    {Connection1, Response} = process_request(Connection0, RestRequest, State),
+    {reply, Response, State#state{connection = Connection1}};
+
+handle_call({_Request = is_alias, Index, Alias}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_is_alias(Index, Alias),
+    {Connection1, Response} = process_request(Connection0, RestRequest, State),
+    Result = make_boolean_response(Response, State),
+    {reply, Result, State#state{connection = Connection1}};
+
+handle_call({_Request = get_alias, Index, Alias}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_get_alias(Index, Alias),
+    {Connection1, Response} = process_request(Connection0, RestRequest, State),
+    {reply, Response, State#state{connection = Connection1}};
+
 handle_call(_Request, _From, State) ->
     thrift_client:close(State#state.connection),
     {stop, unhandled_call, State}.
@@ -688,7 +796,7 @@ process_request(Connection, Request, State = #state{binary_response = BinaryResp
     {Connection1, RestResponse} = do_request(Connection, {'execute', [Request]}, State),
     {Connection1, process_response(BinaryResponse, RestResponse)}.
 
--spec do_request(connection(), request(), #state{}) -> {connection(), response()}.
+-spec do_request(connection(), {'execute', [request()]}, #state{}) -> {connection(), response()}.
 do_request(Connection, {Function, Args}, _State) ->
     Args2 =
         case Args of
@@ -719,7 +827,7 @@ do_request(Connection, {Function, Args}, _State) ->
     end.
 
 
--spec process_response(boolean(), response()) -> response().
+-spec process_response(boolean(), {ok, rest_response()} | error() | exception()) -> response().
 process_response(_, {error, _} = Response) ->
     Response;
 process_response(true, {ok, #restResponse{status = Status, body = undefined}}) ->
@@ -905,6 +1013,67 @@ rest_request_clear_cache(Index, Params) when is_list(Index) ->
     IndexList = join(Index, <<",">>),
     Uri = make_uri([IndexList, ?CLEAR_CACHE], Params),
     #restRequest{method = ?elasticsearch_Method_POST,
+                 uri = Uri}.
+
+rest_request_put_mapping(Index, Type, Doc) when is_list(Index),
+                                                is_binary(Type),
+                                                (is_binary(Doc) orelse is_list(Doc)) ->
+    IndexList = join(Index, <<",">>),
+    Uri = join([IndexList, Type, ?MAPPING], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_PUT,
+                 uri = Uri,
+                 body = Doc}.
+
+rest_request_get_mapping(Index, Type) when is_list(Index),
+                                           is_binary(Type) ->
+    IndexList = join(Index, <<",">>),
+    Uri = join([IndexList, Type, ?MAPPING], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_GET,
+                 uri = Uri}.
+
+rest_request_delete_mapping(Index, Type) when is_list(Index),
+                                              is_binary(Type) ->
+    IndexList = join(Index, <<",">>),
+    Uri = join([IndexList, Type, ?MAPPING], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_DELETE,
+                 uri = Uri}.
+
+rest_request_aliases(Doc) when is_binary(Doc) orelse is_list(Doc) ->
+    Uri = ?ALIASES,
+    #restRequest{method = ?elasticsearch_Method_POST,
+                 uri = Uri,
+                 body = Doc}.
+
+rest_request_insert_alias(Index, Alias) when is_binary(Index),
+                                             is_binary(Alias) ->
+    Uri = join([Index, ?ALIAS, Alias], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_PUT,
+                 uri = Uri}.
+
+rest_request_insert_alias(Index, Alias, Doc) when is_binary(Index),
+                                                  is_binary(Alias),
+                                                  (is_binary(Doc) orelse is_list(Doc)) ->
+    Uri = join([Index, ?ALIAS, Alias], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_PUT,
+                 uri = Uri,
+                 body = Doc}.
+
+rest_request_delete_alias(Index, Alias) when is_binary(Index),
+                                             is_binary(Alias) ->
+    Uri = join([Index, ?ALIAS, Alias], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_DELETE,
+                 uri = Uri}.
+
+rest_request_is_alias(Index, Alias) when is_binary(Index),
+                                         is_binary(Alias) ->
+    Uri = join([Index, ?ALIAS, Alias], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_HEAD,
+                 uri = Uri}.
+
+rest_request_get_alias(Index, Alias) when is_binary(Index),
+                                          is_binary(Alias) ->
+    Uri = join([Index, ?ALIAS, Alias], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri}.
 
 %% @doc Send the request to either poolboy, or the gen_server

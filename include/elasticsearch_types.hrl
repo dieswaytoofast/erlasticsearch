@@ -63,5 +63,5 @@
 
 -record(restResponse, {status :: integer(),
                        headers :: dict(),
-                       body :: string() | binary()
+                       body :: undefined | string() | binary()
                       }).
