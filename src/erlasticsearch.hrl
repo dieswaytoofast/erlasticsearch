@@ -19,6 +19,8 @@
 -type rest_response()   :: #restResponse{}.
 -type response()        :: [tuple()] | error().
 -type request()         :: #restRequest{}.
+-type thrift_host()     :: undefined | string().
+-type thrift_port()     :: undefined | integer().
 -type connection()      :: any().
 -type node_name()       :: binary().
 -type index()           :: binary().
@@ -27,15 +29,15 @@
 -type doc()             :: binary() | list().
 -type params()          :: [tuple()].
 -type client_name()     :: binary().
--type pool_name()       :: binary().
--type registered_client_name() :: atom().
 -type registered_pool_name()   :: atom().
--type server_ref()      :: atom() | pid() | client_name() | {pool, pool_name()}.
+-type server_ref()      :: atom() | pid() | client_name().
+-type fq_server_ref()   :: {thrift_host(), thrift_port(), server_ref()}.
+-type destination()     :: server_ref() | fq_server_ref().
+-type pool_name()       :: binary() | fq_server_ref().
 -type target()          :: atom() | pid().
 
 
 %% Defaults
--define(DEFAULT_CLIENT_NAME, <<"undefined">>).
 -define(DEFAULT_THRIFT_HOST, "localhost").
 -define(DEFAULT_THRIFT_PORT, 9500).
 -define(DEFAULT_POOL_NAME, <<"default_erlasticsearch_pool">>).
