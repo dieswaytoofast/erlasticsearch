@@ -18,7 +18,7 @@
 -type method()          :: atom().
 -type rest_response()   :: #restResponse{}.
 -type response()        :: [tuple()] | error().
--type request()         :: #restRequest{}.
+-type rest_request()    :: #restRequest{}.
 -type thrift_host()     :: undefined | string().
 -type thrift_port()     :: undefined | integer().
 -type connection()      :: any().

@@ -760,7 +760,7 @@ set_env(Key, Value) ->
     application:set_env(?APP, Key, Value).
 
 %% @doc Process the request over thrift
--spec process_request(connection(), request(), #state{}) -> {connection(), response()}.
+-spec process_request(connection(), rest_request(), #state{}) -> {connection(), response()}.
 process_request(undefined, Request, State = #state{connection_options = ConnectionOptions,
                                                    binary_response = BinaryResponse}) ->
     Connection = connection(ConnectionOptions),
@@ -770,7 +770,7 @@ process_request(Connection, Request, State = #state{binary_response = BinaryResp
     {Connection1, RestResponse} = do_request(Connection, {'execute', [Request]}, State),
     {Connection1, process_response(BinaryResponse, RestResponse)}.
 
--spec do_request(connection(), {'execute', [request()]}, #state{}) -> {connection(), response()}.
+-spec do_request(connection(), {'execute', [rest_request()]}, #state{}) -> {connection(),  {ok, rest_response()} | error() | exception()}.
 do_request(Connection, {Function, Args}, _State) ->
     Args2 =
         case Args of
