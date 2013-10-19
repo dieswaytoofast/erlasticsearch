@@ -39,6 +39,7 @@ start_link() ->
 start_pool(PoolName, PoolOptions, ConnectionOptions) when is_list(PoolOptions),
                                                           is_list(ConnectionOptions) ->
     PoolSpec = pool_spec(PoolName, PoolOptions, ConnectionOptions),
+    io:format("PoolSpec:~p~n", [PoolSpec]),
     supervisor:start_child(?SERVER, PoolSpec).
 
 

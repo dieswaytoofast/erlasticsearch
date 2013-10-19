@@ -53,6 +53,7 @@
 
 %% Errors
 -define(NO_SUCH_SEQUENCE, no_such_sequence).
+-define(CONNECTION_REFUSED, {error, econnrefused}).
 
 %% Methods
 -define(STATE, <<"_cluster/state">>).
