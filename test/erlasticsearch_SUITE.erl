@@ -26,6 +26,9 @@
 -define(MAPPING_VALUE, <<"boolean">>).
 -define(MAPPING_DOC(Type), [{Type, [{<<"properties">>, [{?MAPPING_KEY, [{<<"type">>, ?MAPPING_VALUE}]}]}]}]).
 -define(ALIASES_DOC(Index, Alias), [{<<"actions">>, [[{<<"add">>, [{<<"index">>, Index}, {<<"alias">>, Alias}]}]]}]).
+-define(UPDATE_KEY, <<"udpate_key">>).
+-define(UPDATE_VALUE, <<"udpate_value">>).
+-define(UPDATE_DOC, [{<<"doc">>, [{?UPDATE_KEY, ?UPDATE_VALUE}]}]).
 
 
 suite() ->
@@ -181,6 +184,7 @@ groups() ->
     {crud_doc, [],
       [ t_insert_doc, 
        t_get_doc, 
+       t_update_doc, 
        t_delete_doc
       ]},
     {doc_helpers, [],
@@ -191,7 +195,7 @@ groups() ->
       ]},
      {test, [{repeat, 5}],
       [
-        t_is_type_1
+        t_update_doc
       ]},
      {cluster_helpers, [],
       [t_health,
@@ -888,6 +892,34 @@ t_get_doc(Config) ->
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
     process_t_delete_doc(ServerRef, Config).
+
+t_update_doc(Config) ->
+    ServerRef = ?config(pool, Config),
+    Index = ?config(index, Config),
+    Type = ?config(type, Config),
+    process_t_insert_doc(ServerRef, Config),
+    lists:foreach(fun(X) ->
+                BX = list_to_binary(integer_to_list(X)),
+                Doc = ?UPDATE_DOC,
+                Response1 = erlasticsearch:update_doc(ServerRef, Index, Type, BX, Doc),
+                ct:pal("1:~p~n", [Response1]),
+                true = erlasticsearch:is_200(Response1),
+                Response2 = erlasticsearch:get_doc(ServerRef, Index, Type, BX),
+                ct:pal("U:~p~n", [Response2]),
+                validate_update(Response2)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)),
+    process_t_delete_doc(ServerRef, Config).
+
+validate_update(Response) ->
+    {body, Data1} = lists:keyfind(body, 1, Response),
+    Data2 = case is_binary(Data1) of
+        true ->
+            jsx:decode(Data1);
+        false ->
+            Data1
+    end,
+    {_, Data3} = lists:keyfind(<<"_source">>, 1, Data2),
+    {?UPDATE_KEY, ?UPDATE_VALUE} = lists:keyfind(?UPDATE_KEY, 1, Data3).
 
 t_delete_doc(Config) ->
     ServerRef = ?config(pool, Config),
