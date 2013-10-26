@@ -42,6 +42,13 @@ init_per_suite(Config) ->
 end_per_suite(_Config) ->
     ok.
 
+% Send in either the triplet or the name, at random
+pool_name(Name) ->
+    case random:uniform(2) of
+        1 -> {"localhost", 9500, Name};
+        2 -> Name
+    end.
+
 connection_options(1) ->
     [];
 connection_options(2) ->
@@ -88,7 +95,6 @@ es_test_version(Config) ->
 
 
 init_per_group(_GroupName, Config) ->
-    PoolName = random_name(<<"pool_">>),
 
     Config1 = 
     case ?config(saved_config, Config) of
@@ -96,6 +102,7 @@ init_per_group(_GroupName, Config) ->
         undefined -> Config
     end,
     Version = es_test_version(Config1),
+    PoolName = pool_name(random_name(<<"pool_">>)),
     PoolOptions = pool_options(Version),
     ConnectionOptions = connection_options(Version),
 
@@ -160,7 +167,7 @@ groups() ->
         t_get_alias
       ]},
 
-     {index_helpers, [],
+     {index_helpers, [{repeat, 5}],
         [t_flush_1,
         t_flush_list,
         t_flush_all,
@@ -181,13 +188,13 @@ groups() ->
 
        ]},
     % These three _MUST_ be in this sequence, and by themselves
-    {crud_doc, [],
+    {crud_doc, [{repeat, 5}],
       [ t_insert_doc, 
        t_get_doc, 
        t_update_doc, 
        t_delete_doc
       ]},
-    {doc_helpers, [],
+    {doc_helpers, [{repeat, 5}],
        [t_is_doc,
         t_mget_index,
         t_mget_type,
@@ -197,14 +204,14 @@ groups() ->
       [
         t_update_doc
       ]},
-     {cluster_helpers, [],
+     {cluster_helpers, [{repeat, 5}],
       [t_health,
        t_state,
        t_nodes_info,
        t_nodes_stats
       ]},
 
-     {search, [],
+     {search, [{repeat, 5}],
       [t_search,
        t_count,
        t_delete_by_query_param,
@@ -902,10 +909,8 @@ t_update_doc(Config) ->
                 BX = list_to_binary(integer_to_list(X)),
                 Doc = ?UPDATE_DOC,
                 Response1 = erlasticsearch:update_doc(ServerRef, Index, Type, BX, Doc),
-                ct:pal("1:~p~n", [Response1]),
                 true = erlasticsearch:is_200(Response1),
                 Response2 = erlasticsearch:get_doc(ServerRef, Index, Type, BX),
-                ct:pal("U:~p~n", [Response2]),
                 validate_update(Response2)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
     process_t_delete_doc(ServerRef, Config).
