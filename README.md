@@ -30,7 +30,10 @@ Add this as a rebar dependency to your project.
    * ```pools```
       * If you are using the default pools, be sure to use the (uncommented) pool settings from ```app.config``` ( ***If you use the default pools, then you will have to start up elasticsearch before the application, otherwise Bad Things™ will happen*** )
 1. Start a pool
-	* ```erlasticsearch:start_pool(<<"some_unique_name_here">>).```
+	* ```erlasticsearch:start_pool(<<"some_unique_name_here">>).```, or
+	* ```erlasticsearch:start_pool({"localhost", 9500, <<"some_unique_name_here">>).```
+	    * of course, _"localhost"_ and _9500_ should be replaced with your actual *thrift_host* and *thrift_port*
+	    * these values for *thrift_host* and *thrift_port* will override any values that you provide in *connection_options*
 1. Profit
 
 
