@@ -840,8 +840,8 @@ error_or_retry({error, Reason},
     timer:sleep(W),
     ShorterRetryState = update_reconnect_state(State),
     process_request(undefined, Request, ShorterRetryState);
-error_or_retry(_Error, _Request, _State) ->
-    {error, ?CONNECTION_REFUSED}.
+error_or_retry(Error, _Request, _State) ->
+    Error.
     
 -spec do_request(connection(), {'execute', [rest_request()]}, #state{}) ->
                         {connection(),  {ok, rest_response()} | error()}
