@@ -74,6 +74,14 @@ pool_options(_) ->
     [{size, 7},
      {max_overflow, 14}].
 
+retry_options(1) ->
+    [];
+retry_options(2) ->
+    [{retry_interval, 500}];
+retry_options(_) ->
+    [{retry_interval, 500},
+     {retry_amount, 5}].
+
 update_config(Config) ->
     Version = es_test_version(Config),
     Config1 = lists:foldl(fun(X, Acc) -> 
@@ -84,7 +92,8 @@ update_config(Config) ->
                           index_with_shards,
                           connection_options,
                           pool_options,
-                          pool]),
+                          pool,
+                          retry_options]),
     [{es_test_version, Version + 1} | Config1].
 
 es_test_version(Config) ->
@@ -105,9 +114,10 @@ init_per_group(_GroupName, Config) ->
     PoolName = pool_name(random_name(<<"pool_">>)),
     PoolOptions = pool_options(Version),
     ConnectionOptions = connection_options(Version),
+    RetryOptions = retry_options(Version),
 
     Config2 = [{pool_options, PoolOptions},
-               {connection_options, ConnectionOptions},
+               {connection_options, ConnectionOptions ++ RetryOptions},
                {pool, PoolName} | Config1],
     start(Config2),
 
