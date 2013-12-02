@@ -82,10 +82,14 @@
 -define(APP, ?MODULE).
 
 -record(state, {
-        pool_name                           :: pool_name(),
         binary_response = false             :: boolean(),
+        connection                          :: connection(),
         connection_options = []             :: params(),
-        connection                          :: connection()}).
+        pool_name                           :: pool_name(),
+        retries_left = 1                    :: non_neg_integer(),
+        retry_interval = 0                  :: non_neg_integer()}).
+
+-type state() :: #state{}.
 
 %% ------------------------------------------------------------------
 %% API
@@ -546,15 +550,30 @@ join(List, Sep) when is_list(List) ->
 %% ------------------------------------------------------------------
 
 init([PoolName, Options0]) ->
-    {DecodeResponse, ConnectionOptions} = case lists:keytake(binary_response, 1, Options0) of
-        {value, {binary_response, Decode}, Options1} -> {Decode, Options1};
-        false -> {true, Options0}
-    end,
-    Connection = connection(ConnectionOptions),
+    {DecodeResponse, ConnectionOptions} =
+        case lists:keytake(binary_response, 1, Options0) of
+            {value, {binary_response, Decode}, Options1} -> {Decode, Options1};
+            false -> {true, Options0}
+        end,
+    {RetryInterval, ConnectionOptions1} =
+        case lists:keytake(retry_interval, 1, ConnectionOptions) of
+            {value, {retry_interval, Interval}, Options2} ->
+                {Interval, Options2};
+            false -> {0, ConnectionOptions}
+        end,
+    {RetryAmount, ConnectionOptions2} =
+        case lists:keytake(retry_amount, 1, ConnectionOptions1) of
+            {value, {retry_amount, Amount}, Options3} ->
+                {Amount, Options3};
+            false -> {1, ConnectionOptions1}
+        end,
+    Connection = connection(ConnectionOptions2),
     {ok, #state{pool_name = PoolName, 
                 binary_response = DecodeResponse,
                 connection_options = ConnectionOptions,
-                connection = Connection}}.
+                connection = Connection,
+                retries_left = RetryAmount,
+                retry_interval = RetryInterval}}.
 
 handle_call({stop}, _From, State) ->
     thrift_client:close(State#state.connection),
@@ -780,31 +799,55 @@ set_env(Key, Value) ->
 %%      this will retry the request (w/ a new thrift connection)
 %%      before choking
 -spec process_request(connection(), rest_request(), #state{}) -> {connection(), response()}.
-process_request(Connection, Request, State) ->
-    try process_request_1(_Retry = true, Connection, Request, State)
-    catch
-        Exception:Reason ->
-            case {Exception, Reason} of
-                {throw, {retry_request, true}} ->
-                    process_request_1(false, undefined, Request, State);
-                _ ->
-                    {undefined, ?CONNECTION_REFUSED}
-            end
+process_request(undefined, Request, State = #state{connection_options = ConnectionOptions}) ->
+    Connection = connection(ConnectionOptions),
+    process_request(Connection, Request, State);
+process_request(Connection, Request, State = #state{binary_response = BinaryResponse}) ->
+    case do_request(Connection, {'execute', [Request]}, State) of
+        {error, closed, NewState} ->
+            error_or_retry({error, closed}, Request, NewState);
+        {error, econnrefused, NewState} ->
+            error_or_retry({error, econnrefused}, Request, NewState);
+        {Connection1, RestResponse} ->
+            {Connection1, process_response(BinaryResponse, RestResponse)}
     end.
 
-%% @doc Actually perform the request
--spec process_request_1(boolean(), connection(), rest_request(), #state{}) -> {connection(), response()}.
-process_request_1(Retry, undefined, Request, State = #state{connection_options = ConnectionOptions,
-                                                   binary_response = BinaryResponse}) ->
-    Connection = connection(ConnectionOptions),
-    {Connection1, RestResponse} = do_request(Retry, Connection, {'execute', [Request]}, State),
-    {Connection1, process_response(BinaryResponse, RestResponse)};
-process_request_1(Retry, Connection, Request, State = #state{binary_response = BinaryResponse}) ->
-    {Connection1, RestResponse} = do_request(Retry, Connection, {'execute', [Request]}, State),
-    {Connection1, process_response(BinaryResponse, RestResponse)}.
+-spec increase_reconnect_interval(state()) -> state().
+increase_reconnect_interval(#state{retry_interval = Interval} = State) ->
+    if Interval < ?MAX_RECONNECT_INTERVAL ->
+            NewInterval = min(Interval + Interval, ?MAX_RECONNECT_INTERVAL),
+            State#state{retry_interval = NewInterval};
+       true ->
+            State
+    end.
 
--spec do_request(boolean(), connection(), {'execute', [rest_request()]}, #state{}) -> {connection(),  {ok, rest_response()} | error() | exception()}.
-do_request(Retry, Connection, {Function, Args}, _State) ->
+-spec update_reconnect_state(state()) -> state().
+update_reconnect_state(State) ->
+    State1 = increase_reconnect_interval(State),
+    State2 = decrease_retries_left(State1),
+    State2.
+
+-spec decrease_retries_left(state()) -> state().
+decrease_retries_left(#state{retries_left = N} = State) ->
+    State#state{retries_left = N - 1}.
+
+-spec error_or_retry({error, atom()}, rest_request(), state()) ->
+                            {error, atom()} | {connection(), response()}.
+error_or_retry({error, Reason},
+               Request, #state{retries_left = N, retry_interval = W} = State)
+  when N > 0 andalso W >= 0
+       andalso (Reason =:= closed orelse Reason =:= econnrefused) ->
+    timer:sleep(W),
+    ShorterRetryState = update_reconnect_state(State),
+    process_request(undefined, Request, ShorterRetryState);
+error_or_retry(Error, _Request, _State) ->
+    Error.
+    
+-spec do_request(connection(), {'execute', [rest_request()]}, #state{}) ->
+                        {connection(),  {ok, rest_response()} | error()}
+                            | {error, closed, state()}
+                            | {error, econnrefused, state()}.
+do_request(Connection, {Function, Args}, State) ->
     Args2 =
         case Args of
             [#restRequest{body=Body}] when is_binary(Body) ->
@@ -818,25 +861,15 @@ do_request(Retry, Connection, {Function, Args}, _State) ->
         {Connection1, Response = {error, _}} ->
             {Connection1, Response}
     catch
-        Exception:Reason ->
-            case {Exception, Reason} of
-                {throw, {Connection1, Response = {exception, _}}} ->
-                    {Connection1, Response};
-                % Thrift client closes the connection
-                {error, {case_clause, {error, closed}}} ->
-                    if Retry =:= false -> {undefined, ?CONNECTION_REFUSED};
-                        true -> throw({retry_request, Retry})
-                    end;
-                {error, {case_clause,{error, econnrefused}}} ->
-                    if Retry =:= false -> {undefined, ?CONNECTION_REFUSED};
-                        true -> throw({retry_request, Retry})
-                    end;
-                {error, badarg} ->
-                    {Connection, {error, badarg}}
-
-            end
+        throw:{Connection1, Response = {exception, _}} ->
+            {Connection1, Response};
+        error:badarg ->
+            {Connection, {error, badarg}};
+        error:{case_clause, {error, closed}} ->
+            {error, closed, State};
+        error:{case_clause, {error, econnrefused}} ->
+            {error, econnrefused, State}
     end.
-
 
 -spec process_response(boolean(), {ok, rest_response()} | error() | exception()) -> response().
 process_response(_, {error, _} = Response) ->

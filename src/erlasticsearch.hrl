@@ -50,10 +50,10 @@
                                      {binary_response, true}
                                     ]).
 -define(REGISTERED_NAME_PREFIX, "erlasticsearch_").
+-define(MAX_RECONNECT_INTERVAL, 30000).
 
 %% Errors
 -define(NO_SUCH_SEQUENCE, no_such_sequence).
--define(CONNECTION_REFUSED, {error, econnrefused}).
 
 %% Methods
 -define(STATE, <<"_cluster/state">>).
