@@ -881,8 +881,13 @@ process_response(false, {ok, #restResponse{status = Status, body = undefined}}) 
 process_response(true, {ok, #restResponse{status = Status, body = Body}}) ->
     [{status, erlang:integer_to_binary(Status)}, {body, Body}];
 process_response(false, {ok, #restResponse{status = Status, body = Body}}) ->
-    [{status, Status}, {body, jsx:decode(Body)}].
-
+    try
+        [{status, Status}, {body, jsx:decode(Body)}]
+    catch
+        error:badarg ->
+            %% Body was not JSON, decoding failed
+            [{status, Status}, {body, Body}]
+    end.
 
 %% @doc Build a new rest request
 rest_request_health() ->
