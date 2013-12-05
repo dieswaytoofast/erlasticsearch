@@ -1201,9 +1201,9 @@ intersperse(Sep, [X | Xs]) ->
   [X, Sep | intersperse(Sep, Xs)].
 
 uri_encode(Term) when is_binary(Term) ->
-    binary_to_list(Term);
+    uri_encode(binary_to_list(Term));
 uri_encode(Term) when is_integer(Term) ->
-  integer_to_list(Term);
+    uri_encode(integer_to_list(Term));
 uri_encode(Term) when is_atom(Term) ->
   uri_encode(atom_to_list(Term));
 uri_encode(Term) when is_list(Term) ->
