@@ -805,9 +805,9 @@ process_request(undefined, Request, State = #state{connection_options = Connecti
 process_request(Connection, Request, State = #state{binary_response = BinaryResponse}) ->
     case do_request(Connection, {'execute', [Request]}, State) of
         {error, closed, NewState} ->
-            error_or_retry({error, closed}, Request, NewState);
+            error_or_retry({error, closed}, Connection, Request, NewState);
         {error, econnrefused, NewState} ->
-            error_or_retry({error, econnrefused}, Request, NewState);
+            error_or_retry({error, econnrefused}, Connection, Request, NewState);
         {Connection1, RestResponse} ->
             {Connection1, process_response(BinaryResponse, RestResponse)}
     end.
@@ -831,16 +831,17 @@ update_reconnect_state(State) ->
 decrease_retries_left(#state{retries_left = N} = State) ->
     State#state{retries_left = N - 1}.
 
--spec error_or_retry({error, atom()}, rest_request(), state()) ->
+-spec error_or_retry({error, atom()}, connection(), rest_request(), state()) ->
                             {error, atom()} | {connection(), response()}.
-error_or_retry({error, Reason},
+error_or_retry({error, Reason}, Connection,
                Request, #state{retries_left = N, retry_interval = W} = State)
   when N > 0 andalso W >= 0
        andalso (Reason =:= closed orelse Reason =:= econnrefused) ->
     timer:sleep(W),
     ShorterRetryState = update_reconnect_state(State),
+    thrift_client:close(Connection),
     process_request(undefined, Request, ShorterRetryState);
-error_or_retry(Error, _Request, _State) ->
+error_or_retry(Error, _Connection, _Request, _State) ->
     Error.
     
 -spec do_request(connection(), {'execute', [rest_request()]}, #state{}) ->
