@@ -34,6 +34,7 @@
 
 % Cluster helpers
 -export([health/1]).
+-export([cluster_state/1, cluster_state/2]).
 -export([state/1, state/2]).
 -export([nodes_info/1, nodes_info/2, nodes_info/3]).
 -export([nodes_stats/1, nodes_stats/2, nodes_stats/3]).
@@ -56,6 +57,7 @@
 
 %% Index helpers
 -export([status/2]).
+-export([indices_stats/2]).
 -export([refresh/1, refresh/2]).
 -export([flush/1, flush/2]).
 -export([optimize/1, optimize/2]).
@@ -159,6 +161,17 @@ stop_pool(PoolName) ->
 health(Destination) ->
     route_call(Destination, {health}, infinity).
 
+%% @equiv cluster_state(Destination, []).
+-spec cluster_state(destination()) -> response().
+cluster_state(Destination) ->
+    cluster_state(Destination, []).
+
+%% @doc Get the state of the  ElasticSearch cluster
+-spec cluster_state(destination(), params()) -> response().
+%% @equiv state(Destination, Params).
+cluster_state(Destination, Params) when is_list(Params) ->
+    cluster_state(Destination, Params).
+
 %% @equiv state(Destination, []).
 -spec state(destination()) -> response().
 state(Destination) ->
@@ -211,6 +224,13 @@ status(Destination, Index) when is_binary(Index) ->
     status(Destination, [Index]);
 status(Destination, Indexes) when is_list(Indexes)->
     route_call(Destination, {status, Indexes}, infinity).
+
+%% @doc Get the stats of an index/indices in the  ElasticSearch cluster
+-spec indices_stats(destination(), index() | [index()]) -> response().
+indices_stats(Destination, Index) when is_binary(Index) ->
+    indices_stats(Destination, [Index]);
+indices_stats(Destination, Indexes) when is_list(Indexes)->
+    route_call(Destination, {indices_stats, Indexes}, infinity).
 
 %% @equiv create_index(Destination, Index, <<>>)
 -spec create_index(destination(), index()) -> response().
@@ -604,6 +624,11 @@ handle_call({_Request = status, Index}, _From, State = #state{connection = Conne
     {Connection1, Response} = process_request(Connection0, RestRequest, State),
     {reply, Response, State#state{connection = Connection1}};
 
+handle_call({_Request = indices_stats, Index}, _From, State = #state{connection = Connection0}) ->
+    RestRequest = rest_request_indices_stats(Index),
+    {Connection1, Response} = process_request(Connection0, RestRequest, State),
+    {reply, Response, State#state{connection = Connection1}};
+
 handle_call({_Request = create_index, Index, Doc}, _From, State = #state{connection = Connection0}) ->
     RestRequest = rest_request_create_index(Index, Doc),
     {Connection1, Response} = process_request(Connection0, RestRequest, State),
@@ -920,6 +945,12 @@ rest_request_status(Index) when is_list(Index) ->
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri}.
 
+rest_request_indices_stats(Index) when is_list(Index) ->
+    IndexList = join(Index, <<",">>),
+    Uri = join([IndexList, ?INDICES_STATS], <<"/">>),
+    #restRequest{method = ?elasticsearch_Method_GET,
+                 uri = Uri}.
+
 rest_request_create_index(Index, Doc) when is_binary(Index) andalso
                                               (is_binary(Doc) orelse is_list(Doc)) ->
     #restRequest{method = ?elasticsearch_Method_PUT,
@@ -1079,7 +1110,7 @@ rest_request_put_mapping(Index, Type, Doc) when is_list(Index),
                                                 is_binary(Type),
                                                 (is_binary(Doc) orelse is_list(Doc)) ->
     IndexList = join(Index, <<",">>),
-    Uri = join([IndexList, Type, ?MAPPING], <<"/">>),
+    Uri = join([IndexList, ?MAPPING, Type], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_PUT,
                  uri = Uri,
                  body = Doc}.
@@ -1087,14 +1118,14 @@ rest_request_put_mapping(Index, Type, Doc) when is_list(Index),
 rest_request_get_mapping(Index, Type) when is_list(Index),
                                            is_binary(Type) ->
     IndexList = join(Index, <<",">>),
-    Uri = join([IndexList, Type, ?MAPPING], <<"/">>),
+    Uri = join([IndexList, ?MAPPING, Type], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_GET,
                  uri = Uri}.
 
 rest_request_delete_mapping(Index, Type) when is_list(Index),
                                               is_binary(Type) ->
     IndexList = join(Index, <<",">>),
-    Uri = join([IndexList, Type, ?MAPPING], <<"/">>),
+    Uri = join([IndexList, ?MAPPING, Type], <<"/">>),
     #restRequest{method = ?elasticsearch_Method_DELETE,
                  uri = Uri}.
 

@@ -58,9 +58,10 @@
 %% Methods
 -define(STATE, <<"_cluster/state">>).
 -define(HEALTH, <<"_cluster/health">>).
--define(NODES, <<"_cluster/nodes">>).
--define(STATS, <<"stats">>).
+-define(NODES, <<"_nodes">>).
 -define(STATUS, <<"_status">>).
+-define(STATS, <<"stats">>).
+-define(INDICES_STATS, <<"_stats">>).
 -define(SEARCH, <<"_search">>).
 -define(REFRESH, <<"_refresh">>).
 -define(FLUSH, <<"_flush">>).

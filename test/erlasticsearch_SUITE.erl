@@ -191,6 +191,7 @@ groups() ->
         t_segments_list,
         t_segments_all,
         t_status_1,
+        t_indices_stats,
         t_status_all,
         t_clear_cache_1,
         t_clear_cache_list,
@@ -212,10 +213,11 @@ groups() ->
       ]},
      {test, [{repeat, 5}],
       [
-        t_update_doc
+        t_indices_stats
       ]},
      {cluster_helpers, [{repeat, 5}],
       [t_health,
+       t_cluster_state,
        t_state,
        t_nodes_info,
        t_nodes_stats
@@ -247,6 +249,9 @@ t_health(Config) ->
     Response = erlasticsearch:health(ServerRef),
     true = erlasticsearch:is_200(Response).
 
+t_cluster_state(Config) ->
+    t_state(Config).
+
 t_state(Config) ->
     ServerRef = ?config(pool, Config),
     Response1 = erlasticsearch:state(ServerRef),
@@ -263,6 +268,13 @@ t_nodes_stats(Config) ->
     ServerRef = ?config(pool, Config),
     Response1 = erlasticsearch:nodes_stats(ServerRef),
     true = erlasticsearch:is_200(Response1).
+
+t_indices_stats(Config) ->
+    ServerRef = ?config(pool, Config),
+    Index = ?config(index, Config),
+    create_indices(ServerRef, Index),
+    check_indices_stats(ServerRef, Index),
+    delete_all_indices(ServerRef, Index).
 
 t_status_1(Config) ->
     ServerRef = ?config(pool, Config),
@@ -333,6 +345,13 @@ check_status_1(ServerRef, Index) ->
     lists:foreach(fun(X) ->
                 FullIndex = enumerated(Index, X),
                 Response = erlasticsearch:status(ServerRef, FullIndex),
+                true = erlasticsearch:is_200(Response)
+        end, lists:seq(1, ?DOCUMENT_DEPTH)).
+
+check_indices_stats(ServerRef, Index) ->
+    lists:foreach(fun(X) ->
+                FullIndex = enumerated(Index, X),
+                Response = erlasticsearch:indices_stats(ServerRef, FullIndex),
                 true = erlasticsearch:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
@@ -447,20 +466,22 @@ t_get_mapping(Config) ->
     Response1 = erlasticsearch:put_mapping(ServerRef, Index, Type, MappingDoc),
     true = erlasticsearch:is_200(Response1),
     Response2 = erlasticsearch:get_mapping(ServerRef, Index, Type),
-    validate_mapping(Type, Response2),
+    validate_mapping(Index, Type, Response2),
     delete_this_index(ServerRef, Index).
 
-validate_mapping(Type, Response) ->
+validate_mapping(Index, Type, Response) ->
     {body, Data1} = lists:keyfind(body, 1, Response),
-    Data2 = case is_binary(Data1) of
+    DataB = case is_binary(Data1) of
         true ->
             jsx:decode(Data1);
         false ->
             Data1
     end,
-    {Type, Data3} = lists:keyfind(Type, 1, Data2),
-    {<<"properties">>, Data4} = lists:keyfind(<<"properties">>, 1, Data3),
-    {?MAPPING_KEY, [{<<"type">>, ?MAPPING_VALUE}]} = lists:keyfind(?MAPPING_KEY, 1, Data4).
+    {Index, DataI} = lists:keyfind(Index, 1, DataB),
+    {<<"mappings">>, DataM} = lists:keyfind(<<"mappings">>, 1, DataI),
+    {Type, DataT} = lists:keyfind(Type, 1, DataM),
+    {<<"properties">>, DataP} = lists:keyfind(<<"properties">>, 1, DataT),
+    {?MAPPING_KEY, [{<<"type">>, ?MAPPING_VALUE}]} = lists:keyfind(?MAPPING_KEY, 1, DataP).
 
 t_delete_mapping(Config) ->
     ServerRef = ?config(pool, Config),
@@ -846,7 +867,7 @@ param_query(X) ->
 json_query(X) ->
     Key = key(X),
     Value = value(X),
-    jsx:encode([{term, [{Key, Value}]}]).
+    jsx:encode([{query, [{term, [{Key, Value}]}]}]).
 
 decode_body(Body) when is_binary(Body) ->
     jsx:decode(Body);
