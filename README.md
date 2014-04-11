@@ -1,9 +1,11 @@
 ErlasticSearch
 =========
+
 A thrift based erlang client for [ElasticSearch](http://www.elasticsearch.org/).
 
 It incorporates a connection-pool based on [poolboy](https://github.com/devinus/poolboy) - if/when you get down to productizing, you might want to take a look at the pool's `size` and `max_overflow` options
 
+**NOTE** : 1.5.0 for ES 0.9.x;  1.6.0 and higher for ES 1.x
 
 
 Installation
