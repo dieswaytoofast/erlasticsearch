@@ -903,7 +903,7 @@ do_request(Connection, {Function, Args}, State) ->
             [#restRequest{body=Body}] when is_binary(Body) ->
                 Args;
             [A=#restRequest{body=Body}] when is_list(Body) ->
-                [A#restRequest{body=jsx:encode(Body)}]
+                [A#restRequest{body=jsx:encode(Body, [repeat_keys])}]
         end,
     try thrift_client:call(Connection, Function, Args2) of
         {Connection1, Response = {ok, _}} ->
