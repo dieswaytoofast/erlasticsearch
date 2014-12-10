@@ -79,7 +79,7 @@ retry_options(_) ->
 
 update_config(Config) ->
     Version = es_test_version(Config),
-    Config1 = lists:foldl(fun(X, Acc) -> 
+    Config1 = lists:foldl(fun(X, Acc) ->
                     proplists:delete(X, Acc)
             end, Config, [es_test_version,
                           index,
@@ -100,7 +100,7 @@ es_test_version(Config) ->
 
 init_per_group(_GroupName, Config) ->
 
-    Config1 = 
+    Config1 =
     case ?config(saved_config, Config) of
         {_, Config0} -> Config0;
         undefined -> Config
@@ -151,7 +151,7 @@ groups() ->
         t_is_index_all,
         t_is_type_1,
         t_is_type_all,
-        t_create_index, 
+        t_create_index,
         t_create_index_with_shards,
         t_open_index
       ]},
@@ -194,9 +194,9 @@ groups() ->
        ]},
     % These three _MUST_ be in this sequence, and by themselves
     {crud_doc, [{repeat, 5}],
-      [ t_insert_doc, 
-       t_get_doc, 
-       t_update_doc, 
+      [ t_insert_doc,
+       t_get_doc,
+       t_update_doc,
        t_delete_doc,
        t_bulk
       ]},
@@ -230,7 +230,7 @@ all() ->
     [
 %        {group, test}
         {group, crud_index},
-        {group, crud_doc}, 
+        {group, crud_doc},
         {group, search},
         {group, index_helpers},
         {group, cluster_helpers},
@@ -350,7 +350,7 @@ check_indices_stats(PoolName, Index) ->
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
 check_status_all(PoolName, Index) ->
-    FullIndexList = 
+    FullIndexList =
     lists:map(fun(X) ->
                 enumerated(Index, X)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
@@ -367,7 +367,7 @@ clear_cache_1(PoolName, Index) ->
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
 clear_cache_list(PoolName, Index) ->
-    FullIndexList = 
+    FullIndexList =
     lists:map(fun(X) ->
                 enumerated(Index, X)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
@@ -393,11 +393,11 @@ are_types_1(PoolName, Index, Type) ->
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
 are_types_all(PoolName, Index, Type) ->
-    FullIndexList = 
+    FullIndexList =
     lists:map(fun(X) ->
                 enumerated(Index, X)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    FullTypeList = 
+    FullTypeList =
     lists:map(fun(X) ->
                 enumerated(Type, X)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
@@ -420,7 +420,7 @@ build_data(PoolName, Index, Type) ->
                 lists:foreach(fun(Y) ->
                             FullType = enumerated(Type, Y),
                             BX = list_to_binary(integer_to_list(X)),
-                            erlasticsearch:insert_doc(PoolName, FullIndex, 
+                            erlasticsearch:insert_doc(PoolName, FullIndex,
                                                       FullType, BX, json_document(X)),
                             erlasticsearch:flush(PoolName)
                     end, lists:seq(1, ?DOCUMENT_DEPTH))
@@ -582,7 +582,7 @@ t_flush_list(Config) ->
     PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     create_indices(PoolName, Index),
-    Indexes = 
+    Indexes =
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 erlasticsearch:join([Index, BX], <<"_">>)
@@ -615,7 +615,7 @@ t_refresh_list(Config) ->
     PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     create_indices(PoolName, Index),
-    Indexes = 
+    Indexes =
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 erlasticsearch:join([Index, BX], <<"_">>)
@@ -648,7 +648,7 @@ t_optimize_list(Config) ->
     PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     create_indices(PoolName, Index),
-    Indexes = 
+    Indexes =
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 erlasticsearch:join([Index, BX], <<"_">>)
@@ -681,7 +681,7 @@ t_segments_list(Config) ->
     PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     create_indices(PoolName, Index),
-    Indexes = 
+    Indexes =
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 erlasticsearch:join([Index, BX], <<"_">>)
@@ -707,7 +707,7 @@ t_open_index(Config) ->
     Response1 = erlasticsearch:open_index(PoolName, Index),
     true = erlasticsearch_worker:is_200(Response1),
     process_t_delete_doc(PoolName, Config).
-        
+
 
 t_mget_id(Config) ->
     PoolName = ?config(pool, Config),
@@ -822,23 +822,23 @@ t_delete_by_query_doc(Config) ->
 
 
 id_query() ->
-    Ids = lists:map(fun(X) -> 
+    Ids = lists:map(fun(X) ->
                     BX = list_to_binary(integer_to_list(X)),
-                    [{<<"_id">>, BX}] 
+                    [{<<"_id">>, BX}]
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     jsx:encode([{docs, Ids}]).
 
 id_query(Type) ->
-    Ids = lists:map(fun(X) -> 
+    Ids = lists:map(fun(X) ->
                     BX = list_to_binary(integer_to_list(X)),
-                    [{<<"_type">>, Type}, {<<"_id">>, BX}] 
+                    [{<<"_type">>, Type}, {<<"_id">>, BX}]
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     jsx:encode([{docs, Ids}]).
 
 id_query(Index, Type) ->
-    Ids = lists:map(fun(X) -> 
+    Ids = lists:map(fun(X) ->
                     BX = list_to_binary(integer_to_list(X)),
-                    [{<<"_index">>, Index}, {<<"_type">>, Type}, {<<"_id">>, BX}] 
+                    [{<<"_index">>, Index}, {<<"_type">>, Type}, {<<"_id">>, BX}]
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     jsx:encode([{docs, Ids}]).
 
@@ -955,7 +955,7 @@ process_t_insert_doc(PoolName, Config) ->
     Type = ?config(type, Config),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                Response = erlasticsearch:insert_doc(PoolName, Index, 
+                Response = erlasticsearch:insert_doc(PoolName, Index,
                                                      Type, BX, json_document(X)),
                 true = erlasticsearch_worker:is_200_or_201(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
@@ -965,13 +965,13 @@ process_t_bulk(PoolName, Config) ->
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     lists:foreach(fun(X) ->
-                Response1 = erlasticsearch:bulk(PoolName, <<>>, 
+                Response1 = erlasticsearch:bulk(PoolName, <<>>,
                                                 <<>>, bulk_document(<<>>, <<>>, X)),
                 true = erlasticsearch_worker:is_200_or_201(Response1),
-                Response2 = erlasticsearch:bulk(PoolName, Index, 
+                Response2 = erlasticsearch:bulk(PoolName, Index,
                                                 Type, bulk_document(Index, <<>>, X)),
                 true = erlasticsearch_worker:is_200_or_201(Response2),
-                Response3 = erlasticsearch:bulk(PoolName, Index, 
+                Response3 = erlasticsearch:bulk(PoolName, Index,
                                                Type, bulk_document(Index, Type, X)),
                 true = erlasticsearch_worker:is_200_or_201(Response3)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
@@ -1003,7 +1003,7 @@ are_indices_1(PoolName, Index) ->
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
 are_indices_all(PoolName, Index) ->
-    FullIndexList = 
+    FullIndexList =
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 erlasticsearch:join([Index, BX], <<"_">>)
@@ -1036,11 +1036,11 @@ json_document(N) ->
     jsx:encode(document(N)).
 
 document(N) ->
-    lists:foldl(fun(X, Acc) -> 
+    lists:foldl(fun(X, Acc) ->
                 Tuple = case X of
-                    1 -> 
+                    1 ->
                         [{key(1), value(1)}];
-                    X -> 
+                    X ->
                         [{key(X), value(X)},
                          {sub(X), document(N-1)}]
                 end,

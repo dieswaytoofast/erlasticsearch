@@ -45,7 +45,7 @@ init([PoolName, Options0]) ->
             false -> {1, ConnectionOptions1}
         end,
     Connection = connection(ConnectionOptions2),
-    {ok, #state{pool_name = PoolName, 
+    {ok, #state{pool_name = PoolName,
                 binary_response = DecodeResponse,
                 connection_options = ConnectionOptions,
                 connection = Connection,
@@ -316,7 +316,7 @@ error_or_retry({error, Reason}, Connection,
     process_request(undefined, Request, ShorterRetryState);
 error_or_retry(Error, _Connection, _Request, _State) ->
     Error.
-    
+
 -spec do_request(connection(), {'execute', [rest_request()]}, #state{}) ->
                         {connection(),  {ok, rest_response()} | error()}
                             | {error, closed, state()}
