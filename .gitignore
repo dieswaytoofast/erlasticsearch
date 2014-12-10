@@ -4,3 +4,4 @@ ebin/*.app
 logs
 log
 test/*.beam
+/erl_crash.dump

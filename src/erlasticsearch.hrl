@@ -19,8 +19,6 @@
 -type rest_response()   :: #restResponse{}.
 -type response()        :: [tuple()] | error().
 -type rest_request()    :: #restRequest{}.
--type thrift_host()     :: undefined | string().
--type thrift_port()     :: undefined | integer().
 -type connection()      :: any().
 -type node_name()       :: binary().
 -type index()           :: binary().
@@ -28,13 +26,7 @@
 -type id()              :: binary() | undefined.
 -type doc()             :: binary() | list().
 -type params()          :: [tuple()].
--type client_name()     :: binary().
--type registered_pool_name()   :: atom().
--type server_ref()      :: atom() | pid() | client_name().
--type fq_server_ref()   :: {thrift_host(), thrift_port(), server_ref()}.
--type destination()     :: server_ref() | fq_server_ref().
--type pool_name()       :: binary() | fq_server_ref().
--type target()          :: atom() | pid().
+-type pool_name()       :: atom().
 
 
 %% Defaults
@@ -49,7 +41,6 @@
                                      {thrift_port, ?DEFAULT_THRIFT_PORT},
                                      {binary_response, true}
                                     ]).
--define(REGISTERED_NAME_PREFIX, "erlasticsearch_").
 -define(MAX_RECONNECT_INTERVAL, 30000).
 
 %% Errors

@@ -44,9 +44,8 @@ start_pool(PoolName, PoolOptions, ConnectionOptions) when is_list(PoolOptions),
 
 -spec stop_pool(pool_name()) -> ok | error().
 stop_pool(PoolName) ->
-    PoolId = erlasticsearch:registered_pool_name(PoolName),
-    supervisor:terminate_child(?SERVER, PoolId),
-    supervisor:delete_child(?SERVER, PoolId).
+    supervisor:terminate_child(?SERVER, PoolName),
+    supervisor:delete_child(?SERVER, PoolName).
 
 
 -spec init(Args :: term()) -> {ok, {{RestartStrategy :: supervisor:strategy(), MaxR :: non_neg_integer(), MaxT :: non_neg_integer()},
@@ -58,45 +57,10 @@ init([]) ->
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
-    PoolName = application:get_env(erlasticsearch, pool_name, ?DEFAULT_POOL_NAME),
-    % We need this to be a one_for_one supervisor, because of the way the 
-    % connection_options trickle through to the workers (and hence, our
-    % gen-server).  To simplify things, I start a default pool of size 0. This
-    % ensures that even if ElasticSearch is not up, the application still starts
-    % up.
-    % NOTE: You can have the pool actually connect and do something by passing
-    % in pool_name / pool_options / connection_options in the environment (or by
-    % setting it in your app.config)
-    PoolOptions = application:get_env(erlasticsearch, pool_options, [{size, 0},
-                                                                     {max_overflow, 0}]),
-    ConnectionOptions = application:get_env(erlasticsearch, connection_options, []),
-    PoolSpecs = pool_spec({undefined, undefined, PoolName}, PoolOptions, ConnectionOptions),
-    {ok, {SupFlags, [PoolSpecs]}}.
+    {ok, {SupFlags, []}}.
 
 -spec pool_spec(pool_name(), params(), params()) -> supervisor:child_spec().
-pool_spec({Host, Port, _} = PoolName, PoolOptions, ConnectionOptions) ->
-    PoolId = erlasticsearch:registered_pool_name(PoolName),
-    PoolArgs = [{name, {local, PoolId}},
-                {worker_module, erlasticsearch_poolboy_worker}] ++ PoolOptions,
-    ConnectionArgs = sanitize_connection_options(thrift_host(Host),
-                                                 thrift_port(Port),
-                                                 ConnectionOptions),
-    % Pass in pool_name to the connection_options since this is also the
-    %   keyspace, and is needed by init/1
-    poolboy:child_spec(PoolId, PoolArgs, ConnectionArgs).
-
-thrift_host(undefined) -> [];
-thrift_host(Host) when is_list(Host) -> [{thrift_host, Host}].
-thrift_port(undefined) -> [];
-thrift_port(Port) when is_integer(Port) -> [{thrift_port, Port}].
-
-sanitize_connection_options([], [], Options) ->
-    Options;
-sanitize_connection_options(HostArgs, [], Options) ->
-    HostArgs ++ lists:keydelete(thrift_host, 1, Options);
-sanitize_connection_options([], PortArgs, Options) ->
-    PortArgs ++ lists:keydelete(thrift_port, 1, Options);
-sanitize_connection_options(HostArgs, PortArgs, Options) ->
-    HostArgs ++ 
-    PortArgs ++ 
-    lists:keydelete(thrift_host, 1, lists:keydelete(thrift_port, 1, Options)).
+pool_spec(PoolName, PoolOptions, ConnectionOptions) ->
+    PoolArgs = [{name, {local, PoolName}},
+                {worker_module, erlasticsearch_worker}] ++ PoolOptions,
+    poolboy:child_spec(PoolName, PoolArgs, ConnectionOptions).
