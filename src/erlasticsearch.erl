@@ -414,12 +414,13 @@ is_alias(PoolName, Index, Alias) when is_binary(Index) andalso is_binary(Alias) 
 get_alias(PoolName, Index, Alias) when is_binary(Index) andalso is_binary(Alias) ->
     pool_call(PoolName, {get_alias, Index, Alias}, infinity).
 
--spec pool_call(pool_name(), tuple(), timeout()) ->response().
+-spec pool_call(pool_name(), tuple(), timeout()) ->
+    response().
 pool_call(PoolName, Command, Timeout) ->
-    poolboy:transaction(PoolName,
-                        fun(Worker) ->
-                                gen_server:call(Worker, Command, Timeout)
-                        end).
+    Call = fun(Worker) -> gen_server:call(Worker, Command, Timeout) end,
+    % TODO: Propogate full result.
+    {ok, Response} = poolboy:transaction(PoolName, Call),
+    Response.
 
 -spec get_env(Key :: atom(), Default :: term()) -> term().
 get_env(Key, Default) ->
