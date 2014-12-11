@@ -290,11 +290,11 @@ connection(ConnectionOptions) ->
 process_request(undefined, Request, State = #state{connection_options = ConnectionOptions}) ->
     Connection = connection(ConnectionOptions),
     process_request(Connection, Request, State);
-process_request(Connection, Request, State = #state{binary_response = BinaryResponse}) ->
-    {RequestResult, State2} = do_request(Connection, {execute, [Request]}, State),
+process_request(Connection, RestRequest, State = #state{binary_response = BinaryResponse}) ->
+    {RequestResult, State2} = do_request(Connection, RestRequest, State),
     case RequestResult of
         {error, {connection_error, Reason}} ->
-            error_or_retry({error, Reason}, State2#state.connection, Request, State2);
+            error_or_retry({error, Reason}, State2#state.connection, RestRequest, State2);
         {ok, RestResponse1} ->
             RestResponse2 = process_response(BinaryResponse, RestResponse1),
             {State2#state.connection, RestResponse2}
@@ -333,7 +333,7 @@ error_or_retry({error, Reason}, Connection,
 error_or_retry(Error, _Connection, _Request, _State) ->
     Error.
 
--spec do_request(connection(), {execute, [rest_request()]}, #state{}) ->
+-spec do_request(connection(), rest_request(), #state{}) ->
     {RequestResult, state()}
     when RequestResult ::
            {ok   , rest_response()}
@@ -343,16 +343,16 @@ error_or_retry(Error, _Connection, _Request, _State) ->
          | {call_error       , thrift_call_error()}
          | {call_exception   , {java, any()} | {erlang, badarg}}
        .
-do_request(Connection1, {Function, Args}, State1) ->
+do_request(Connection1, #restRequest{body=Body}=RestRequest, State1) ->
     %TODO: Connection should come from State
-    Args2 =
-        case Args of
-            [#restRequest{body=Body}] when is_binary(Body) ->
-                Args;
-            [A=#restRequest{body=Body}] when is_list(Body) ->
-                [A#restRequest{body=jsx:encode(Body, [repeat_keys])}]
+    BodyBin =
+        case Body of
+            <<_/binary>>            -> Body;
+            Body when is_list(Body) -> jsx:encode(Body, [repeat_keys])
         end,
-    try thrift_client:call(Connection1, Function, Args2) of
+    Function = execute,
+    Arguments = [RestRequest#restRequest{body=BodyBin}],
+    try thrift_client:call(Connection1, Function, Arguments) of
         {Connection2, {ok, RestResponse}} ->
             State2 = State1#state{connection=Connection2},
             {{ok, RestResponse}, State2};
