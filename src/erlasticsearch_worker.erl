@@ -46,7 +46,7 @@ init([PoolName, ConnectionOptions1]) ->
             false ->
                 {true, ConnectionOptions1}
         end,
-    Connection = connection(ConnectionOptions2),
+    {ok, Connection} = connect(ConnectionOptions2),
     {ok, #state{pool_name = PoolName,
                 binary_response = DecodeResponse,
                 connection_options = ConnectionOptions2,
@@ -170,9 +170,9 @@ rest_request_of_call(Call) ->
     end.
 
 
-
--spec connection(params()) -> connection().
-connection(ConnectionOptions) ->
+-spec connect_exn(params()) ->
+    connection().
+connect_exn(ConnectionOptions) ->
     ThriftHost = proplists:get_value(thrift_host, ConnectionOptions, ?DEFAULT_THRIFT_HOST),
     ThriftPort = proplists:get_value(thrift_port, ConnectionOptions, ?DEFAULT_THRIFT_PORT),
     ThriftOptions = case lists:keyfind(thrift_options, 1, ConnectionOptions) of
@@ -181,6 +181,13 @@ connection(ConnectionOptions) ->
     end,
     {ok, Connection} = thrift_client_util:new(ThriftHost, ThriftPort, elasticsearch_thrift, ThriftOptions),
     Connection.
+
+-spec connect(params()) ->
+    hope_result:t(connection(), {connection_error, {ExceptionClass, any()}})
+    when ExceptionClass :: error | exit | throw.
+connect(ConnectionOptions) ->
+    Connect = hope_result:lift_exn(fun connect_exn/1, connection_error),
+    Connect(ConnectionOptions).
 
 -spec do_request(connection(), rest_request(), #state{}) ->
     {RequestResult, state()}
