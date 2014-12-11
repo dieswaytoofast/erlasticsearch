@@ -68,201 +68,26 @@ handle_call({stop}, _From, State) ->
     thrift_client:close(State#state.connection),
     {stop, normal, ok, State};
 
-handle_call({_Request = health}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_health(),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
+handle_call(Call, _From, #state{connection=Conn1, binary_response=IsBinResp}=State1) ->
+    case rest_request_of_call(Call) of
+        {error, {unknown_call, _}} ->
+            thrift_client:close(Conn1),
+            {stop, unhandled_call, State1};
+        {ok, RestRequest} ->
+            % TODO: process_request needs to return state()
+            {Conn2, Response1} = process_request(Conn1, RestRequest, State1),
+            State2 = State1#state{connection = Conn2},
+            % TODO: make_boolean_response
+            Response2 = maybe_make_boolean_response(Call, Response1, IsBinResp),
+            {reply, Response2, State2}
+    end.
 
-handle_call({_Request = state, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_state(Params),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = nodes_info, NodeNames, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_nodes_info(NodeNames, Params),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = nodes_stats, NodeNames, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_nodes_stats(NodeNames, Params),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = status, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_status(Index),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = indices_stats, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_indices_stats(Index),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = create_index, Index, Doc}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_create_index(Index, Doc),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = delete_index, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_delete_index(Index),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = open_index, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_open_index(Index),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = close_index, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_close_index(Index),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = count, Index, Type, Doc, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_count(Index, Type, Doc, Params),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = delete_by_query, Index, Type, Doc, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_delete_by_query(Index, Type, Doc, Params),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = is_index, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_is_index(Index),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    Result = make_boolean_response(Response, State),
-    {reply, Result, State#state{connection = Connection1}};
-
-handle_call({_Request = is_type, Index, Type}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_is_type(Index, Type),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    Result = make_boolean_response(Response, State),
-
-    {reply, Result, State#state{connection = Connection1}};
-
-handle_call({_Request = insert_doc, Index, Type, Id, Doc, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_insert_doc(Index, Type, Id, Doc, Params),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = update_doc, Index, Type, Id, Doc, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_update_doc(Index, Type, Id, Doc, Params),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = get_doc, Index, Type, Id, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_get_doc(Index, Type, Id, Params),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = mget_doc, Index, Type, Doc}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_mget_doc(Index, Type, Doc),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = is_doc, Index, Type, Id}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_is_doc(Index, Type, Id),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    Result = make_boolean_response(Response, State),
-    {reply, Result, State#state{connection = Connection1}};
-
-handle_call({_Request = delete_doc, Index, Type, Id, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_delete_doc(Index, Type, Id, Params),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = search, Index, Type, Doc, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_search(Index, Type, Doc, Params),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = bulk, Index, Type, Doc}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_bulk(Index, Type, Doc),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = refresh, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_refresh(Index),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = flush, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_flush(Index),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = optimize, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_optimize(Index),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = segments, Index}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_segments(Index),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = clear_cache, Index, Params}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_clear_cache(Index, Params),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = put_mapping, Indexes, Type, Doc}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_put_mapping(Indexes, Type, Doc),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = get_mapping, Indexes, Type}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_get_mapping(Indexes, Type),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = delete_mapping, Indexes, Type}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_delete_mapping(Indexes, Type),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = aliases, Doc}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_aliases(Doc),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = insert_alias, Index, Alias}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_insert_alias(Index, Alias),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = insert_alias, Index, Alias, Doc}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_insert_alias(Index, Alias, Doc),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = delete_alias, Index, Alias}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_delete_alias(Index, Alias),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call({_Request = is_alias, Index, Alias}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_is_alias(Index, Alias),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    Result = make_boolean_response(Response, State),
-    {reply, Result, State#state{connection = Connection1}};
-
-handle_call({_Request = get_alias, Index, Alias}, _From, State = #state{connection = Connection0}) ->
-    RestRequest = rest_request_get_alias(Index, Alias),
-    {Connection1, Response} = process_request(Connection0, RestRequest, State),
-    {reply, Response, State#state{connection = Connection1}};
-
-handle_call(_Request, _From, State) ->
-    thrift_client:close(State#state.connection),
-    {stop, unhandled_call, State}.
-
-handle_cast(_Request, State) ->
-    thrift_client:close(State#state.connection),
+handle_cast(_, #state{connection=Conn}=State) ->
+    thrift_client:close(Conn),
     {stop, unhandled_info, State}.
 
-handle_info(_Info, State) ->
-    thrift_client:close(State#state.connection),
+handle_info(_, #state{connection=Conn}=State) ->
+    thrift_client:close(Conn),
     {stop, unhandled_info, State}.
 
 terminate(_Reason, State) ->
@@ -271,6 +96,87 @@ terminate(_Reason, State) ->
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+
+rest_request_of_call(Call) ->
+    case Call of
+        {health} ->
+            {ok, rest_request_health()};
+        {state, Params} ->
+            {ok, rest_request_state(Params)};
+        {nodes_info , NodeNames, Params} ->
+            {ok, rest_request_nodes_info(NodeNames, Params)};
+        {nodes_stats, NodeNames, Params} ->
+            {ok, rest_request_nodes_stats(NodeNames, Params)};
+        {status, Index} ->
+            {ok, rest_request_status(Index)};
+        {indices_stats, Index} ->
+            {ok, rest_request_indices_stats(Index)};
+        {create_index, Index, Doc} ->
+            {ok, rest_request_create_index(Index, Doc)};
+        {delete_index, Index} ->
+            {ok, rest_request_delete_index(Index)};
+        {open_index, Index} ->
+            {ok, rest_request_open_index(Index)};
+        {close_index, Index} ->
+            {ok, rest_request_close_index(Index)};
+        {count, Index, Type, Doc, Params} ->
+            {ok, rest_request_count(Index, Type, Doc, Params)};
+        {delete_by_query, Index, Type, Doc, Params} ->
+            {ok, rest_request_delete_by_query(Index, Type, Doc, Params)};
+        {is_index, Index} ->
+            {ok, rest_request_is_index(Index)};
+        {is_type, Index, Type} ->
+            {ok, rest_request_is_type(Index, Type)};
+        {insert_doc, Index, Type, Id, Doc, Params} ->
+            {ok, rest_request_insert_doc(Index, Type, Id, Doc, Params)};
+        {update_doc, Index, Type, Id, Doc, Params} ->
+            {ok, rest_request_update_doc(Index, Type, Id, Doc, Params)};
+        {get_doc, Index, Type, Id, Params} ->
+            {ok, rest_request_get_doc(Index, Type, Id, Params)};
+        {mget_doc, Index, Type, Doc} ->
+            {ok, rest_request_mget_doc(Index, Type, Doc)};
+        {is_doc, Index, Type, Id} ->
+            {ok, rest_request_is_doc(Index, Type, Id)};
+        {delete_doc, Index, Type, Id, Params} ->
+            {ok, rest_request_delete_doc(Index, Type, Id, Params)};
+        {search, Index, Type, Doc, Params} ->
+            {ok, rest_request_search(Index, Type, Doc, Params)};
+        {bulk, Index, Type, Doc} ->
+            {ok, rest_request_bulk(Index, Type, Doc)};
+        {refresh, Index} ->
+            {ok, rest_request_refresh(Index)};
+        {flush, Index} ->
+            {ok, rest_request_flush(Index)};
+        {optimize, Index} ->
+            {ok, rest_request_optimize(Index)};
+        {segments, Index} ->
+            {ok, rest_request_segments(Index)};
+        {clear_cache, Index, Params} ->
+            {ok, rest_request_clear_cache(Index, Params)};
+        {put_mapping, Indices, Type, Doc} ->
+            {ok, rest_request_put_mapping(Indices, Type, Doc)};
+        {get_mapping, Indices, Type} ->
+            {ok, rest_request_get_mapping(Indices, Type)};
+        {delete_mapping, Indices, Type} ->
+            {ok, rest_request_delete_mapping(Indices, Type)};
+        {aliases, Doc} ->
+            {ok, rest_request_aliases(Doc)};
+        {insert_alias, Index, Alias} ->
+            {ok, rest_request_insert_alias(Index, Alias)};
+        {insert_alias, Index, Alias, Doc} ->
+            {ok, rest_request_insert_alias(Index, Alias, Doc)};
+        {delete_alias, Index, Alias} ->
+            {ok, rest_request_delete_alias(Index, Alias)};
+        {is_alias, Index, Alias} ->
+            {ok, rest_request_is_alias(Index, Alias)};
+        {get_alias, Index, Alias} ->
+            {ok, rest_request_get_alias(Index, Alias)};
+        _ ->
+            {error, {unknown_call, Call}}
+    end.
+
+
 
 -spec connection(params()) -> connection().
 connection(ConnectionOptions) ->
@@ -714,17 +620,29 @@ dec2hex(N) when N >= 10 andalso N =< 15 ->
 dec2hex(N) when N >= 0 andalso N =< 9 ->
   N + $0.
 
--spec make_boolean_response(response(), #state{}) -> response().
-make_boolean_response(Response, #state{binary_response = false}) when is_list(Response) ->
-    case is_200(Response) of
-        true -> [{result, true} | Response];
-        false -> [{result, false} | Response]
-    end;
-make_boolean_response(Response, #state{binary_response = true}) when is_list(Response) ->
-    case is_200(Response) of
-        true -> [{result, <<"true">>} | Response];
-        false -> [{result, <<"false">>} | Response]
+-spec maybe_make_boolean_response(Call :: any(), response(), boolean()) ->
+    response().
+maybe_make_boolean_response(Call, Response, IsBinResp) ->
+    MakeBool =
+        fun () ->
+            Is200 = is_200(Response),
+            Is200MaybeBin =
+                case IsBinResp of
+                    true  -> boolean_to_bin(Is200);
+                    false ->                Is200
+                end,
+            [{result, Is200MaybeBin} | Response]
+        end,
+    case Call of
+        {is_index, _}     -> MakeBool();
+        {is_type, _, _}   -> MakeBool();
+        {is_doc, _, _, _} -> MakeBool();
+        {is_alias, _, _}  -> MakeBool();
+        _                 -> Response
     end.
+
+boolean_to_bin(true)  -> <<"true">>;
+boolean_to_bin(false) -> <<"false">>.
 
 -spec is_200(response()) -> boolean().
 is_200(Response) ->
