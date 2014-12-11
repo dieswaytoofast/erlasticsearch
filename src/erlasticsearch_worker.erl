@@ -1,3 +1,4 @@
+% TODO: Add periodic, off-line connection ping and repair attempt.
 -module(erlasticsearch_worker).
 
 -behaviour(gen_server).
