@@ -13,8 +13,12 @@
 -include("elasticsearch_types.hrl").
 
 
+%% NOTE: The following two definitions, error() and exception(), are
+%% contextually meaningless if there's no specific information or unifying,
+%% generic operation(s) defined.
 -type error()           :: {error, Reason :: any()}.
 -type exception()       :: {exception, Reason :: any()}.
+
 -type method()          :: atom().
 -type rest_response()   :: #restResponse{}.
 -type response()        :: [tuple()] | error().
