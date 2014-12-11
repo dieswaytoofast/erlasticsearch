@@ -22,6 +22,18 @@
 
 -type state() :: #state{}.
 
+-type connection_error() ::
+      closed
+    | econnrefused
+    .
+
+-type thrift_call_error() ::
+      {no_function, atom()}
+    | {bad_args   , atom(), list()}
+    | {bad_seq_id , integer()}
+    % TODO: What else? Does it even matter? Would we ever handle these individualy?
+    .
+
 start_link(ConnectionOptions) ->
     gen_server:start_link(?MODULE, [?DEFAULT_POOL_NAME, ConnectionOptions], []).
 
@@ -271,18 +283,20 @@ connection(ConnectionOptions) ->
     {ok, Connection} = thrift_client_util:new(ThriftHost, ThriftPort, elasticsearch_thrift, ThriftOptions),
     Connection.
 
--spec process_request(connection(), rest_request(), #state{}) -> {connection(), response()}.
+% TODO: Why isn't State returned?
+-spec process_request(connection(), rest_request(), #state{}) ->
+    {connection(), response()}.
+
 process_request(undefined, Request, State = #state{connection_options = ConnectionOptions}) ->
     Connection = connection(ConnectionOptions),
     process_request(Connection, Request, State);
 process_request(Connection, Request, State = #state{binary_response = BinaryResponse}) ->
-    case do_request(Connection, {'execute', [Request]}, State) of
-        {error, closed, NewState} ->
-            error_or_retry({error, closed}, Connection, Request, NewState);
-        {error, econnrefused, NewState} ->
-            error_or_retry({error, econnrefused}, Connection, Request, NewState);
-        {Connection1, RestResponse} ->
-            {Connection1, process_response(BinaryResponse, RestResponse)}
+    case do_request(Connection, {execute, [Request]}, State) of
+        {error, {{connection_error, Reason}, State2}} ->
+            error_or_retry({error, Reason}, State2#state.connection, Request, State2);
+        {ok, {RestResponse1, State2}} ->
+            RestResponse2 = process_response(BinaryResponse, RestResponse1),
+            {State2#state.connection, RestResponse2}
     end.
 
 -spec increase_reconnect_interval(state()) -> state().
@@ -304,6 +318,7 @@ update_reconnect_state(State) ->
 decrease_retries_left(#state{retries_left = N} = State) ->
     State#state{retries_left = N - 1}.
 
+% TODO: error_or_retry needs to go away
 -spec error_or_retry({error, atom()}, connection(), rest_request(), state()) ->
                             {error, atom()} | {connection(), response()}.
 error_or_retry({error, Reason}, Connection,
@@ -317,11 +332,16 @@ error_or_retry({error, Reason}, Connection,
 error_or_retry(Error, _Connection, _Request, _State) ->
     Error.
 
--spec do_request(connection(), {'execute', [rest_request()]}, #state{}) ->
-                        {connection(),  {ok, rest_response()} | error()}
-                            | {error, closed, state()}
-                            | {error, econnrefused, state()}.
-do_request(Connection, {Function, Args}, State) ->
+-spec do_request(connection(), {execute, [rest_request()]}, #state{}) ->
+      {ok   , {rest_response(), #state{}}}
+    | {error, {Reason         , #state{}}}
+    when Reason ::
+          {connection_error , connection_error()}
+        | {call_error       , thrift_call_error()}
+        | {call_exception   , {java, any()} | {erlang, badarg}}
+    .
+do_request(Connection1, {Function, Args}, State1) ->
+    %TODO: Connection should come from State
     Args2 =
         case Args of
             [#restRequest{body=Body}] when is_binary(Body) ->
@@ -329,32 +349,36 @@ do_request(Connection, {Function, Args}, State) ->
             [A=#restRequest{body=Body}] when is_list(Body) ->
                 [A#restRequest{body=jsx:encode(Body, [repeat_keys])}]
         end,
-    try thrift_client:call(Connection, Function, Args2) of
-        {Connection1, Response = {ok, _}} ->
-            {Connection1, Response};
-        {Connection1, Response = {error, _}} ->
-            {Connection1, Response}
+    try thrift_client:call(Connection1, Function, Args2) of
+        {Connection2, {ok, RestResponse}} ->
+            State2 = State1#state{connection=Connection2},
+            {ok, {RestResponse, State2}};
+        {Connection2, {error, Reason}} ->
+            State2 = State1#state{connection=Connection2},
+            {error, {{call_error, Reason}, State2}}
     catch
-        throw:{Connection1, Response = {exception, _}} ->
-            {Connection1, Response};
+        throw:{Connection2, {exception, ExceptionDetails}} ->
+            State2 = State1#state{connection=Connection2},
+            {error, {{call_exception, {java, ExceptionDetails}}, State2}};
         error:badarg ->
-            {Connection, {error, badarg}};
+            % TODO: What does badarg mean here? Why are we catching it?
+            {error, {{call_exception, {erlang, badarg}}, State1}};
         error:{case_clause, {error, closed}} ->
-            {error, closed, State};
+            {error, {closed, State1}};
         error:{case_clause, {error, econnrefused}} ->
-            {error, econnrefused, State}
+            {error, {econnrefused, State1}}
     end.
 
--spec process_response(boolean(), {ok, rest_response()} | error() | exception()) -> response().
-process_response(_, {error, _} = Response) ->
-    Response;
-process_response(true, {ok, #restResponse{status = Status, body = undefined}}) ->
+-spec process_response(boolean(), rest_response()) ->
+    response().
+process_response(true, #restResponse{status = Status, body = undefined}) ->
     [{status, erlang:integer_to_binary(Status)}];
-process_response(false, {ok, #restResponse{status = Status, body = undefined}}) ->
+process_response(false, #restResponse{status = Status, body = undefined}) ->
     [{status, Status}];
-process_response(true, {ok, #restResponse{status = Status, body = Body}}) ->
+process_response(true, #restResponse{status = Status, body = Body}) ->
     [{status, erlang:integer_to_binary(Status)}, {body, Body}];
-process_response(false, {ok, #restResponse{status = Status, body = Body}}) ->
+process_response(false, #restResponse{status = Status, body = Body}) ->
+    % TODO: What does this try/catch block mean?
     try
         [{status, Status}, {body, jsx:decode(Body)}]
     catch
@@ -688,7 +712,6 @@ dec2hex(N) when N >= 0 andalso N =< 9 ->
   N + $0.
 
 -spec make_boolean_response(response(), #state{}) -> response().
-make_boolean_response({error, _} = Response, _) -> Response;
 make_boolean_response(Response, #state{binary_response = false}) when is_list(Response) ->
     case is_200(Response) of
         true -> [{result, true} | Response];
@@ -701,7 +724,6 @@ make_boolean_response(Response, #state{binary_response = true}) when is_list(Res
     end.
 
 -spec is_200(response()) -> boolean().
-is_200({error, _} = Response) -> Response;
 is_200(Response) ->
     case lists:keyfind(status, 1, Response) of
         {status, 200} -> true;
