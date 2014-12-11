@@ -11,9 +11,11 @@
 -module(erlasticsearch_SUITE).
 -author('Mahesh Paolini-Subramanya <mahesh@dieswaytoofast.com>').
 
+% TODO: Only import what is needed.
 -include_lib("proper/include/proper.hrl").
 -include_lib("common_test/include/ct.hrl").
 
+% TODO: Only export what is needed.
 -compile(export_all).
 
 -define(CHECKSPEC(M,F,N), true = proper:check_spec({M,F,N})).
