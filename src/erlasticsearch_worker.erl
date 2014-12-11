@@ -291,10 +291,11 @@ process_request(undefined, Request, State = #state{connection_options = Connecti
     Connection = connection(ConnectionOptions),
     process_request(Connection, Request, State);
 process_request(Connection, Request, State = #state{binary_response = BinaryResponse}) ->
-    case do_request(Connection, {execute, [Request]}, State) of
-        {error, {{connection_error, Reason}, State2}} ->
+    {RequestResult, State2} = do_request(Connection, {execute, [Request]}, State),
+    case RequestResult of
+        {error, {connection_error, Reason}} ->
             error_or_retry({error, Reason}, State2#state.connection, Request, State2);
-        {ok, {RestResponse1, State2}} ->
+        {ok, RestResponse1} ->
             RestResponse2 = process_response(BinaryResponse, RestResponse1),
             {State2#state.connection, RestResponse2}
     end.
@@ -333,13 +334,15 @@ error_or_retry(Error, _Connection, _Request, _State) ->
     Error.
 
 -spec do_request(connection(), {execute, [rest_request()]}, #state{}) ->
-      {ok   , {rest_response(), #state{}}}
-    | {error, {Reason         , #state{}}}
-    when Reason ::
-          {connection_error , connection_error()}
-        | {call_error       , thrift_call_error()}
-        | {call_exception   , {java, any()} | {erlang, badarg}}
-    .
+    {RequestResult, state()}
+    when RequestResult ::
+           {ok   , rest_response()}
+         | {error, Reason}
+       , Reason ::
+           {connection_error , connection_error()}
+         | {call_error       , thrift_call_error()}
+         | {call_exception   , {java, any()} | {erlang, badarg}}
+       .
 do_request(Connection1, {Function, Args}, State1) ->
     %TODO: Connection should come from State
     Args2 =
@@ -352,21 +355,21 @@ do_request(Connection1, {Function, Args}, State1) ->
     try thrift_client:call(Connection1, Function, Args2) of
         {Connection2, {ok, RestResponse}} ->
             State2 = State1#state{connection=Connection2},
-            {ok, {RestResponse, State2}};
+            {{ok, RestResponse}, State2};
         {Connection2, {error, Reason}} ->
             State2 = State1#state{connection=Connection2},
-            {error, {{call_error, Reason}, State2}}
+            {{error, {call_error, Reason}}, State2}
     catch
         throw:{Connection2, {exception, ExceptionDetails}} ->
             State2 = State1#state{connection=Connection2},
-            {error, {{call_exception, {java, ExceptionDetails}}, State2}};
+            {{error, {call_exception, {java, ExceptionDetails}}}, State2};
         error:badarg ->
             % TODO: What does badarg mean here? Why are we catching it?
-            {error, {{call_exception, {erlang, badarg}}, State1}};
+            {{error, {call_exception, {erlang, badarg}}}, State1};
         error:{case_clause, {error, closed}} ->
-            {error, {closed, State1}};
+            {{error, {connection_error, closed}}, State1};
         error:{case_clause, {error, econnrefused}} ->
-            {error, {econnrefused, State1}}
+            {{error, {connection_error, econnrefused}}, State1}
     end.
 
 -spec process_response(boolean(), rest_response()) ->
