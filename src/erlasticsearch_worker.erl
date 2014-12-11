@@ -77,7 +77,6 @@ handle_call(Call, _From, #state{connection=Conn1, binary_response=IsBinResp}=Sta
             % TODO: process_request needs to return state()
             {Conn2, Response1} = process_request(Conn1, RestRequest, State1),
             State2 = State1#state{connection = Conn2},
-            % TODO: make_boolean_response
             Response2 = maybe_make_boolean_response(Call, Response1, IsBinResp),
             {reply, Response2, State2}
     end.
