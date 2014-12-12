@@ -21,6 +21,7 @@
         binary_response = false :: boolean(),
         connection = none       :: hope_option:t(connection()),
         connection_options = [] :: params(),
+        % TODO: connection_refresh_interval needs to be configurable.
         connection_refresh_interval = ?ONE_MINUTE :: erlang:time(),
         pool_name               :: pool_name()
         }).
