@@ -38,7 +38,7 @@
       {no_function, atom()}
     | {bad_args   , atom(), list()}
     | {bad_seq_id , integer()}
-    % TODO: What else? Does it even matter? Would we ever handle these individualy?
+    % TODO: What else? Does it even matter? Would we ever handle these individually?
     .
 
 start_link(ConnectionOptions) ->
