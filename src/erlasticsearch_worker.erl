@@ -1,4 +1,4 @@
-% TODO: Add periodic, off-line connection ping and repair attempt.
+% TODO: Logging
 -module(erlasticsearch_worker).
 
 -behaviour(gen_server).
@@ -13,10 +13,15 @@
 
 -include("erlasticsearch.hrl").
 
+-define(ONE_SECOND, 1000).
+-define(ONE_MINUTE, 60 * ?ONE_SECOND).
+-define(SIGNAL_CONNECTION_REFRESH, connection_refresh).
+
 -record(state, {
         binary_response = false :: boolean(),
         connection = none       :: hope_option:t(connection()),
         connection_options = [] :: params(),
+        connection_refresh_interval = ?ONE_MINUTE :: erlang:time(),
         pool_name               :: pool_name()
         }).
 
@@ -48,13 +53,13 @@ init([PoolName, ConnectionOptions1]) ->
             false ->
                 {true, ConnectionOptions1}
         end,
-    {ok, Connection} = connect(ConnectionOptions2),
-    {ok, #state{pool_name = PoolName,
-                binary_response = DecodeResponse,
-                connection_options = ConnectionOptions2,
-                connection = {some, Connection}
-        }
-    }.
+    State1 = #state
+        { pool_name          = PoolName
+        , binary_response    = DecodeResponse
+        , connection_options = ConnectionOptions2
+        },
+    State2 = state_connection_try_open(State1),
+    {ok, State2}.
 
 handle_call({stop}, _, State1) ->
     State2 = state_connection_close(State1),
@@ -87,6 +92,9 @@ handle_cast(_, State1) ->
     State2 = state_connection_close(State1),
     {stop, unhandled_info, State2}.
 
+handle_info(?SIGNAL_CONNECTION_REFRESH, #state{}=State) ->
+    % TODO: Can we (ostensibly) ping and only reconnect if ping fails?
+    {noreply, state_connection_try_open(State)};
 handle_info(_, State1) ->
     State2 = state_connection_close(State1),
     {stop, unhandled_info, State2}.
@@ -98,6 +106,23 @@ terminate(_Reason, State1) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
+
+-spec schedule_connection_refresh(erlang:time()) ->
+    ok.
+schedule_connection_refresh(Time) ->
+    _ = erlang:send_after(Time, self(), ?SIGNAL_CONNECTION_REFRESH),
+    ok.
+
+-spec state_connection_try_open(state()) ->
+    state().
+state_connection_try_open(#state{connection_options=ConnParams}=State) ->
+    ConnOpt =
+        case connect(ConnParams) of
+            {ok, Conn} -> {some, Conn};
+            {error, _} -> none
+        end,
+    ok = schedule_connection_refresh(State#state.connection_refresh_interval),
+    State#state{connection=ConnOpt}.
 
 -spec state_connection_close(state()) ->
     state().
@@ -194,6 +219,7 @@ connect_exn(ConnectionOptions) ->
         {thrift_options, Options} -> Options;
         false -> []
     end,
+    % TODO: Can we specify a timeout?
     {ok, Connection} = thrift_client_util:new(ThriftHost, ThriftPort, elasticsearch_thrift, ThriftOptions),
     Connection.
 
