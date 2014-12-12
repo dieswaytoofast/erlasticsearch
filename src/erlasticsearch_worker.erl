@@ -15,15 +15,17 @@
 
 -record(state, {
         binary_response = false :: boolean(),
-        connection              :: connection(),
+        connection = none       :: hope_option:t(connection()),
         connection_options = [] :: params(),
         pool_name               :: pool_name()
         }).
 
--type state() :: #state{}.
+-type state() ::
+    #state{}.
 
 -type connection_error() ::
       closed
+    | disconnected
     | econnrefused
     .
 
@@ -50,45 +52,58 @@ init([PoolName, ConnectionOptions1]) ->
     {ok, #state{pool_name = PoolName,
                 binary_response = DecodeResponse,
                 connection_options = ConnectionOptions2,
-                connection = Connection}}.
+                connection = {some, Connection}
+        }
+    }.
 
-handle_call({stop}, _From, State) ->
-    thrift_client:close(State#state.connection),
-    {stop, normal, ok, State};
+handle_call({stop}, _, State1) ->
+    State2 = state_connection_close(State1),
+    {stop, normal, ok, State2};
 
-handle_call(Call, _From, #state{connection=Conn1, binary_response=IsBinResp}=State1) ->
+handle_call(_, _, #state{connection=none}=State) ->
+    {reply, {error, {connection_error, disconnected}}, State};
+handle_call(Call, _From, #state{connection={some, Conn1}, binary_response=IsBinResp}=State1) ->
     case rest_request_of_call(Call) of
         {error, {unknown_call, _}} ->
-            thrift_client:close(Conn1),
-            {stop, unhandled_call, State1};
+            % TODO: What is the point of handling unknown_call?
+            State2 = state_connection_close(State1),
+            {stop, unhandled_call, State2};
         {ok, RestRequest} ->
-            {RequestResult1, State2} = do_request(Conn1, RestRequest, State1),
-            RequestResult2 =
-                case RequestResult1 of
-                    {error, _}=Error ->
-                        Error;
-                    {ok, Resp1} ->
+            {RequestResult, State2} =
+                case do_request(RestRequest, Conn1) of
+                    {{error, {connection_error, _}}=Result, _Conn2} ->
+                        {Result, State1#state{connection=none}};
+                    {{error, _}=Result, Conn2} ->
+                        {Result, State1#state{connection={some, Conn2}}};
+                    {{ok, Resp1}, Conn2} ->
                         Resp2 = process_response(IsBinResp, Resp1),
                         Resp3 = maybe_make_boolean_response(Call, Resp2, IsBinResp),
-                        {ok, Resp3}
+                        {{ok, Resp3}, State1#state{connection={some, Conn2}}}
                 end,
-            {reply, RequestResult2, State2}
+            {reply, RequestResult, State2}
     end.
 
-handle_cast(_, #state{connection=Conn}=State) ->
-    thrift_client:close(Conn),
-    {stop, unhandled_info, State}.
+handle_cast(_, State1) ->
+    State2 = state_connection_close(State1),
+    {stop, unhandled_info, State2}.
 
-handle_info(_, #state{connection=Conn}=State) ->
-    thrift_client:close(Conn),
-    {stop, unhandled_info, State}.
+handle_info(_, State1) ->
+    State2 = state_connection_close(State1),
+    {stop, unhandled_info, State2}.
 
-terminate(_Reason, State) ->
-    thrift_client:close(State#state.connection),
+terminate(_Reason, State1) ->
+    _State2 = state_connection_close(State1),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+
+-spec state_connection_close(state()) ->
+    state().
+state_connection_close(#state{connection=ConnOpt}=State) ->
+    ok = hope_option:iter(ConnOpt, fun thrift_client:close/1),
+    State#state{connection=none}.
 
 
 rest_request_of_call(Call) ->
@@ -189,18 +204,14 @@ connect(ConnectionOptions) ->
     Connect = hope_result:lift_exn(fun connect_exn/1, connection_error),
     Connect(ConnectionOptions).
 
--spec do_request(connection(), rest_request(), #state{}) ->
-    {RequestResult, state()}
-    when RequestResult ::
-           {ok   , rest_response()}
-         | {error, Reason}
-       , Reason ::
+-spec do_request(rest_request(), connection()) ->
+    {hope_result:t(rest_response(), Error), connection()}
+    when Error ::
            {connection_error , connection_error()}
          | {call_error       , thrift_call_error()}
          | {call_exception   , {java, any()} | {erlang, badarg}}
        .
-do_request(Connection1, #restRequest{body=Body}=RestRequest, State1) ->
-    %TODO: Connection should come from State
+do_request(#restRequest{body=Body}=RestRequest, Connection1) ->
     BodyBin =
         case Body of
             <<_/binary>>            -> Body;
@@ -210,22 +221,19 @@ do_request(Connection1, #restRequest{body=Body}=RestRequest, State1) ->
     Arguments = [RestRequest#restRequest{body=BodyBin}],
     try thrift_client:call(Connection1, Function, Arguments) of
         {Connection2, {ok, RestResponse}} ->
-            State2 = State1#state{connection=Connection2},
-            {{ok, RestResponse}, State2};
+            {{ok, RestResponse}, Connection2};
         {Connection2, {error, Reason}} ->
-            State2 = State1#state{connection=Connection2},
-            {{error, {call_error, Reason}}, State2}
+            {{error, {call_error, Reason}}, Connection2}
     catch
         throw:{Connection2, {exception, ExceptionDetails}} ->
-            State2 = State1#state{connection=Connection2},
-            {{error, {call_exception, {java, ExceptionDetails}}}, State2};
+            {{error, {call_exception, {java, ExceptionDetails}}}, Connection2};
         error:badarg ->
             % TODO: What does badarg mean here? Why are we catching it?
-            {{error, {call_exception, {erlang, badarg}}}, State1};
+            {{error, {call_exception, {erlang, badarg}}}, Connection1};
         error:{case_clause, {error, closed}} ->
-            {{error, {connection_error, closed}}, State1};
+            {{error, {connection_error, closed}}, Connection1};
         error:{case_clause, {error, econnrefused}} ->
-            {{error, {connection_error, econnrefused}}, State1}
+            {{error, {connection_error, econnrefused}}, Connection1}
     end.
 
 -spec process_response(boolean(), rest_response()) ->
