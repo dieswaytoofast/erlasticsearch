@@ -116,11 +116,7 @@ schedule_connection_refresh(Time) ->
 -spec state_connection_try_open(state()) ->
     state().
 state_connection_try_open(#state{connection_options=ConnParams}=State) ->
-    ConnOpt =
-        case connect(ConnParams) of
-            {ok, Conn} -> {some, Conn};
-            {error, _} -> none
-        end,
+    ConnOpt = hope_option:of_result(connect(ConnParams)),
     ok = schedule_connection_refresh(State#state.connection_refresh_interval),
     State#state{connection=ConnOpt}.
 
