@@ -9,7 +9,12 @@ PLT_APPS := $(shell ls $(ERL_LIB_DIR) | grep -v interface | sed -e 's/-[0-9.]*//
 
 .PHONY: all build-plt compile console deps doc clean depclean distclean dialyze release telstart test test-console
 
-all: compile
+all: \
+	clean \
+	deps \
+	compile \
+	dialyze \
+	test
 
 compile: deps
 	@rebar compile
