@@ -92,9 +92,24 @@ handle_cast(_, State1) ->
     State2 = state_connection_close(State1),
     {stop, unhandled_info, State2}.
 
-handle_info(?SIGNAL_CONNECTION_REFRESH, #state{}=State) ->
-    % TODO: Can we (ostensibly) ping and only reconnect if ping fails?
-    {noreply, state_connection_try_open(State)};
+handle_info(?SIGNAL_CONNECTION_REFRESH, #state{connection=ConnOpt1}=State1) ->
+    State2 =
+        case ConnOpt1 of
+            none ->
+                state_connection_try_open(State1);
+            {some, Conn1} ->
+                {ok, RestRequest} = rest_request_of_call({health}),
+                ConnOpt2 =
+                    case do_request(RestRequest, Conn1) of
+                        {{ok, _}, Conn2} ->
+                            {some, Conn2};
+                        {{error, _}, Conn2} ->
+                            ok = thrift_client:close(Conn2),
+                            none
+                    end,
+                State1#state{connection=ConnOpt2}
+        end,
+    {noreply, State2};
 handle_info(_, State1) ->
     State2 = state_connection_close(State1),
     {stop, unhandled_info, State2}.
