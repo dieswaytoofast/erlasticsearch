@@ -53,13 +53,13 @@ init([PoolName, ConnectionOptions1]) ->
             false ->
                 {true, ConnectionOptions1}
         end,
-    State1 = #state
+    State = #state
         { pool_name          = PoolName
         , binary_response    = DecodeResponse
         , connection_options = ConnectionOptions2
         },
-    State2 = state_connection_try_open(State1),
-    {ok, State2}.
+    ok = schedule_connection_refresh(),
+    {ok, State}.
 
 handle_call({stop}, _, State1) ->
     State2 = state_connection_close(State1),
@@ -107,9 +107,17 @@ code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 
+-spec schedule_connection_refresh() ->
+    ok.
+schedule_connection_refresh() ->
+    schedule_connection_refresh(0).
+
 -spec schedule_connection_refresh(erlang:time()) ->
     ok.
-schedule_connection_refresh(Time) ->
+schedule_connection_refresh(0) ->
+    _ = self() ! ?SIGNAL_CONNECTION_REFRESH,
+    ok;
+schedule_connection_refresh(Time) when Time > 0 ->
     _ = erlang:send_after(Time, self(), ?SIGNAL_CONNECTION_REFRESH),
     ok.
 
