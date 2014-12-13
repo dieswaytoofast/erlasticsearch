@@ -93,7 +93,11 @@ handle_cast(_, State1) ->
     State2 = state_connection_close(State1),
     {stop, unhandled_info, State2}.
 
-handle_info(?SIGNAL_CONNECTION_REFRESH, #state{connection=ConnOpt1}=State1) ->
+handle_info(?SIGNAL_CONNECTION_REFRESH, #state
+    { connection                  = ConnOpt1
+    , connection_refresh_interval = ConnRefreshInterval
+    }=State1
+) ->
     State2 =
         case ConnOpt1 of
             none ->
@@ -110,6 +114,7 @@ handle_info(?SIGNAL_CONNECTION_REFRESH, #state{connection=ConnOpt1}=State1) ->
                     end,
                 State1#state{connection=ConnOpt2}
         end,
+    ok = schedule_connection_refresh(ConnRefreshInterval),
     {noreply, State2};
 handle_info(_, State1) ->
     State2 = state_connection_close(State1),
@@ -141,7 +146,6 @@ schedule_connection_refresh(Time) when Time > 0 ->
     state().
 state_connection_try_open(#state{connection_options=ConnParams}=State) ->
     ConnOpt = hope_option:of_result(connect(ConnParams)),
-    ok = schedule_connection_refresh(State#state.connection_refresh_interval),
     State#state{connection=ConnOpt}.
 
 -spec state_connection_close(state()) ->
