@@ -419,7 +419,7 @@ get_alias(PoolName, Index, Alias) when is_binary(Index) andalso is_binary(Alias)
 pool_call(PoolName, Command, Timeout) ->
     Call = fun(Worker) -> gen_server:call(Worker, Command, Timeout) end,
     Result = poolboy:transaction(PoolName, Call),
-    lager:debug("Erlasticsearch call: ~p, Result: ~p", [Command, Result]),
+    lager:info("Erlasticsearch call: ~p, Result: ~p", [Command, Result]),
     % TODO: Propogate full result.
     {ok, Response} = Result,
     Response.
