@@ -91,7 +91,7 @@ handle_call(Call, _From, #state{connection={some, Conn1}, binary_response=IsBinR
 
 handle_cast(_, State1) ->
     State2 = state_connection_close(State1),
-    {stop, unhandled_info, State2}.
+    {stop, unhandled_cast, State2}.
 
 handle_info(?SIGNAL_CONNECTION_REFRESH, #state
     { connection                  = ConnOpt1
@@ -116,9 +116,11 @@ handle_info(?SIGNAL_CONNECTION_REFRESH, #state
         end,
     ok = schedule_connection_refresh(ConnRefreshInterval),
     {noreply, State2};
-handle_info(_, State1) ->
+handle_info({'EXIT', _, shutdown}, State1) ->
     State2 = state_connection_close(State1),
-    {stop, unhandled_info, State2}.
+    {stop, normal, State2};
+handle_info(_, State) ->
+    {stop, unhandled_info, State}.
 
 terminate(_Reason, State1) ->
     _State2 = state_connection_close(State1),
@@ -150,9 +152,11 @@ state_connection_try_open(#state{connection_options=ConnParams}=State) ->
 
 -spec state_connection_close(state()) ->
     state().
-state_connection_close(#state{connection=ConnOpt}=State) ->
-    ok = hope_option:iter(ConnOpt, fun thrift_client:close/1),
-    State#state{connection=none}.
+state_connection_close(#state{connection={some, ConnOpt}}=State) ->
+    {_, ok} = thrift_client:close(ConnOpt),
+    State#state{connection=none};
+state_connection_close(#state{connection=none}=State) ->
+    State.
 
 
 rest_request_of_call(Call) ->
