@@ -91,7 +91,7 @@ handle_call(Call, _From, #state{connection={some, Conn1}, binary_response=IsBinR
 
 handle_cast(_, State1) ->
     State2 = state_connection_close(State1),
-    {stop, unhandled_info, State2}.
+    {stop, unhandled_cast, State2}.
 
 handle_info(?SIGNAL_CONNECTION_REFRESH, #state
     { connection                  = ConnOpt1
@@ -118,7 +118,9 @@ handle_info(?SIGNAL_CONNECTION_REFRESH, #state
     {noreply, State2};
 handle_info({'EXIT', _, shutdown}, State1) ->
     State2 = state_connection_close(State1),
-    {stop, normal, State2}.
+    {stop, normal, State2};
+handle_info(_, State) ->
+    {stop, unhandled_info, State}.
 
 terminate(_Reason, State1) ->
     _State2 = state_connection_close(State1),
