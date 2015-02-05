@@ -11,9 +11,11 @@
 -module(erlasticsearch_SUITE).
 -author('Mahesh Paolini-Subramanya <mahesh@dieswaytoofast.com>').
 
+% TODO: Only import what is needed.
 -include_lib("proper/include/proper.hrl").
 -include_lib("common_test/include/ct.hrl").
 
+% TODO: Only export what is needed.
 -compile(export_all).
 
 -define(CHECKSPEC(M,F,N), true = proper:check_spec({M,F,N})).
@@ -35,19 +37,14 @@ suite() ->
     [{ct_hooks,[cth_surefire]}, {timetrap,{seconds,320}}].
 
 init_per_suite(Config) ->
-%    setup_lager(),
     setup_environment(),
     Config.
 
 end_per_suite(_Config) ->
     ok.
 
-% Send in either the triplet or the name, at random
 pool_name(Name) ->
-    case random:uniform(2) of
-        1 -> {"localhost", 9500, Name};
-        2 -> Name
-    end.
+    binary_to_atom(Name, latin1).
 
 connection_options(1) ->
     [];
@@ -84,7 +81,7 @@ retry_options(_) ->
 
 update_config(Config) ->
     Version = es_test_version(Config),
-    Config1 = lists:foldl(fun(X, Acc) -> 
+    Config1 = lists:foldl(fun(X, Acc) ->
                     proplists:delete(X, Acc)
             end, Config, [es_test_version,
                           index,
@@ -105,7 +102,7 @@ es_test_version(Config) ->
 
 init_per_group(_GroupName, Config) ->
 
-    Config1 = 
+    Config1 =
     case ?config(saved_config, Config) of
         {_, Config0} -> Config0;
         undefined -> Config
@@ -127,7 +124,6 @@ init_per_group(_GroupName, Config) ->
 
     Config3 = [{index, Index}, {index_with_shards, IndexWithShards}]
                 ++ Config2,
-    % Clear out any existing indices w/ this name
     delete_all_indices(PoolName, Config3),
 
     Type = random_name(<<"type_">>),
@@ -157,7 +153,7 @@ groups() ->
         t_is_index_all,
         t_is_type_1,
         t_is_type_all,
-        t_create_index, 
+        t_create_index,
         t_create_index_with_shards,
         t_open_index
       ]},
@@ -200,9 +196,9 @@ groups() ->
        ]},
     % These three _MUST_ be in this sequence, and by themselves
     {crud_doc, [{repeat, 5}],
-      [ t_insert_doc, 
-       t_get_doc, 
-       t_update_doc, 
+      [ t_insert_doc,
+       t_get_doc,
+       t_update_doc,
        t_delete_doc,
        t_bulk
       ]},
@@ -236,7 +232,7 @@ all() ->
     [
 %        {group, test}
         {group, crud_index},
-        {group, crud_doc}, 
+        {group, crud_doc},
         {group, search},
         {group, index_helpers},
         {group, cluster_helpers},
@@ -246,229 +242,226 @@ all() ->
     ].
 
 t_health(Config) ->
-    ServerRef = ?config(pool, Config),
-    Response = erlasticsearch:health(ServerRef),
-    true = erlasticsearch:is_200(Response).
+    PoolName = ?config(pool, Config),
+    Response = erlasticsearch:health(PoolName),
+    true = erlasticsearch_worker:is_200(Response).
 
 t_cluster_state(Config) ->
     t_state(Config).
 
 t_state(Config) ->
-    ServerRef = ?config(pool, Config),
-    Response1 = erlasticsearch:state(ServerRef),
-    true = erlasticsearch:is_200(Response1),
-    Response2 = erlasticsearch:state(ServerRef, [{filter_nodes, true}]),
-    true = erlasticsearch:is_200(Response2).
+    PoolName = ?config(pool, Config),
+    Response1 = erlasticsearch:state(PoolName),
+    true = erlasticsearch_worker:is_200(Response1),
+    Response2 = erlasticsearch:state(PoolName, [{filter_nodes, true}]),
+    true = erlasticsearch_worker:is_200(Response2).
 
 t_nodes_info(Config) ->
-    ServerRef = ?config(pool, Config),
-    Response1 = erlasticsearch:nodes_info(ServerRef),
-    true = erlasticsearch:is_200(Response1).
+    PoolName = ?config(pool, Config),
+    Response1 = erlasticsearch:nodes_info(PoolName),
+    true = erlasticsearch_worker:is_200(Response1).
 
 t_nodes_stats(Config) ->
-    ServerRef = ?config(pool, Config),
-    Response1 = erlasticsearch:nodes_stats(ServerRef),
-    true = erlasticsearch:is_200(Response1).
+    PoolName = ?config(pool, Config),
+    Response1 = erlasticsearch:nodes_stats(PoolName),
+    true = erlasticsearch_worker:is_200(Response1).
 
 t_indices_stats(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    check_indices_stats(ServerRef, Index),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    check_indices_stats(PoolName, Index),
+    delete_all_indices(PoolName, Index).
 
 t_status_1(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    check_status_1(ServerRef, Index),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    check_status_1(PoolName, Index),
+    delete_all_indices(PoolName, Index).
 
 t_status_all(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    check_status_all(ServerRef, Index),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    check_status_all(PoolName, Index),
+    delete_all_indices(PoolName, Index).
 
 t_clear_cache_1(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    clear_cache_1(ServerRef, Index),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    clear_cache_1(PoolName, Index),
+    delete_all_indices(PoolName, Index).
 
 t_clear_cache_list(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    clear_cache_list(ServerRef, Index),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    clear_cache_list(PoolName, Index),
+    delete_all_indices(PoolName, Index).
 
 t_clear_cache_all(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    clear_cache_all(ServerRef, Index),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    clear_cache_all(PoolName, Index),
+    delete_all_indices(PoolName, Index).
 
 t_is_index_1(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    are_indices_1(ServerRef, Index),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    are_indices_1(PoolName, Index),
+    delete_all_indices(PoolName, Index).
 
 t_is_index_all(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    are_indices_all(ServerRef, Index),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    are_indices_all(PoolName, Index),
+    delete_all_indices(PoolName, Index).
 
 t_is_type_1(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
-    build_data(ServerRef, Index, Type),
-    are_types_1(ServerRef, Index, Type),
-    clear_data(ServerRef, Index).
+    build_data(PoolName, Index, Type),
+    are_types_1(PoolName, Index, Type),
+    clear_data(PoolName, Index).
 
 t_is_type_all(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
-    build_data(ServerRef, Index, Type),
-    are_types_all(ServerRef, Index, Type).
-%    clear_data(ServerRef, Index).
+    build_data(PoolName, Index, Type),
+    are_types_all(PoolName, Index, Type).
 
-check_status_1(ServerRef, Index) ->
+check_status_1(PoolName, Index) ->
     lists:foreach(fun(X) ->
                 FullIndex = enumerated(Index, X),
-                Response = erlasticsearch:status(ServerRef, FullIndex),
-                true = erlasticsearch:is_200(Response)
+                Response = erlasticsearch:status(PoolName, FullIndex),
+                true = erlasticsearch_worker:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
-check_indices_stats(ServerRef, Index) ->
+check_indices_stats(PoolName, Index) ->
     lists:foreach(fun(X) ->
                 FullIndex = enumerated(Index, X),
-                Response = erlasticsearch:indices_stats(ServerRef, FullIndex),
-                true = erlasticsearch:is_200(Response)
+                Response = erlasticsearch:indices_stats(PoolName, FullIndex),
+                true = erlasticsearch_worker:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
-check_status_all(ServerRef, Index) ->
-    FullIndexList = 
+check_status_all(PoolName, Index) ->
+    FullIndexList =
     lists:map(fun(X) ->
                 enumerated(Index, X)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    Response = erlasticsearch:status(ServerRef, FullIndexList),
-    true = erlasticsearch:is_200(Response).
+    Response = erlasticsearch:status(PoolName, FullIndexList),
+    true = erlasticsearch_worker:is_200(Response).
 
-clear_cache_1(ServerRef, Index) ->
+clear_cache_1(PoolName, Index) ->
     lists:foreach(fun(X) ->
                 FullIndex = enumerated(Index, X),
-                Response1 = erlasticsearch:clear_cache(ServerRef, FullIndex),
-                true = erlasticsearch:is_200(Response1),
-                Response2 = erlasticsearch:clear_cache(ServerRef, FullIndex, [{filter, true}]),
-                true = erlasticsearch:is_200(Response2)
+                Response1 = erlasticsearch:clear_cache(PoolName, FullIndex),
+                true = erlasticsearch_worker:is_200(Response1),
+                Response2 = erlasticsearch:clear_cache(PoolName, FullIndex, [{filter, true}]),
+                true = erlasticsearch_worker:is_200(Response2)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
-clear_cache_list(ServerRef, Index) ->
-    FullIndexList = 
+clear_cache_list(PoolName, Index) ->
+    FullIndexList =
     lists:map(fun(X) ->
                 enumerated(Index, X)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    Response1 = erlasticsearch:clear_cache(ServerRef, FullIndexList),
-    true = erlasticsearch:is_200(Response1),
-    Response2 = erlasticsearch:clear_cache(ServerRef, FullIndexList, [{filter, true}]),
-    true = erlasticsearch:is_200(Response2).
+    Response1 = erlasticsearch:clear_cache(PoolName, FullIndexList),
+    true = erlasticsearch_worker:is_200(Response1),
+    Response2 = erlasticsearch:clear_cache(PoolName, FullIndexList, [{filter, true}]),
+    true = erlasticsearch_worker:is_200(Response2).
 
-clear_cache_all(ServerRef, _Index) ->
-    Response1 = erlasticsearch:clear_cache(ServerRef),
-    true = erlasticsearch:is_200(Response1),
-    Response2 = erlasticsearch:clear_cache(ServerRef, [], [{filter, true}]),
-    true = erlasticsearch:is_200(Response2).
+clear_cache_all(PoolName, _Index) ->
+    Response1 = erlasticsearch:clear_cache(PoolName),
+    true = erlasticsearch_worker:is_200(Response1),
+    Response2 = erlasticsearch:clear_cache(PoolName, [], [{filter, true}]),
+    true = erlasticsearch_worker:is_200(Response2).
 
 
-are_types_1(ServerRef, Index, Type) ->
+are_types_1(PoolName, Index, Type) ->
     lists:foreach(fun(X) ->
                 FullIndex = enumerated(Index, X),
                 lists:foreach(fun(Y) ->
                             FullType = enumerated(Type, Y),
-                            true = true_response(erlasticsearch:is_type(ServerRef, FullIndex, FullType))
+                            true = true_response(erlasticsearch:is_type(PoolName, FullIndex, FullType))
                     end, lists:seq(1, ?DOCUMENT_DEPTH))
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
-are_types_all(ServerRef, Index, Type) ->
-    FullIndexList = 
+are_types_all(PoolName, Index, Type) ->
+    FullIndexList =
     lists:map(fun(X) ->
                 enumerated(Index, X)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    FullTypeList = 
+    FullTypeList =
     lists:map(fun(X) ->
                 enumerated(Type, X)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     % List of indices
     lists:foreach(fun(X) ->
                 FullType = enumerated(Type, X),
-                true = true_response(erlasticsearch:is_type(ServerRef, FullIndexList, FullType))
+                true = true_response(erlasticsearch:is_type(PoolName, FullIndexList, FullType))
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
     % List of types
     lists:foreach(fun(X) ->
                 FullIndex = enumerated(Index, X),
-                true = true_response(erlasticsearch:is_type(ServerRef, FullIndex, FullTypeList))
+                true = true_response(erlasticsearch:is_type(PoolName, FullIndex, FullTypeList))
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
     % List of indices and types
-    true = true_response(erlasticsearch:is_type(ServerRef, FullIndexList, FullTypeList)).
+    true = true_response(erlasticsearch:is_type(PoolName, FullIndexList, FullTypeList)).
 
-build_data(ServerRef, Index, Type) ->
+build_data(PoolName, Index, Type) ->
     lists:foreach(fun(X) ->
                 FullIndex = enumerated(Index, X),
                 lists:foreach(fun(Y) ->
                             FullType = enumerated(Type, Y),
                             BX = list_to_binary(integer_to_list(X)),
-                            erlasticsearch:insert_doc(ServerRef, FullIndex, 
+                            erlasticsearch:insert_doc(PoolName, FullIndex,
                                                       FullType, BX, json_document(X)),
-                            erlasticsearch:flush(ServerRef)
+                            erlasticsearch:flush(PoolName)
                     end, lists:seq(1, ?DOCUMENT_DEPTH))
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
-clear_data(ServerRef, Index) ->
+clear_data(PoolName, Index) ->
     lists:foreach(fun(X) ->
                 FullIndex = enumerated(Index, X),
-                erlasticsearch:delete_index(ServerRef, FullIndex)
+                erlasticsearch:delete_index(PoolName, FullIndex)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    erlasticsearch:flush(ServerRef).
+    erlasticsearch:flush(PoolName).
 
-% Also deletes indices
 t_create_index(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    delete_all_indices(PoolName, Index).
 
-% Also deletes indices
 t_put_mapping(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
-    erlasticsearch:create_index(ServerRef, Index),
+    erlasticsearch:create_index(PoolName, Index),
     MappingDoc = jsx:encode(?MAPPING_DOC(Type)),
-    Response = erlasticsearch:put_mapping(ServerRef, Index, Type, MappingDoc),
-    true = erlasticsearch:is_200(Response),
-    delete_this_index(ServerRef, Index).
+    Response = erlasticsearch:put_mapping(PoolName, Index, Type, MappingDoc),
+    true = erlasticsearch_worker:is_200(Response),
+    delete_this_index(PoolName, Index).
 
 t_get_mapping(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
-    erlasticsearch:create_index(ServerRef, Index),
+    erlasticsearch:create_index(PoolName, Index),
     MappingDoc = jsx:encode(?MAPPING_DOC(Type)),
-    Response1 = erlasticsearch:put_mapping(ServerRef, Index, Type, MappingDoc),
-    true = erlasticsearch:is_200(Response1),
-    Response2 = erlasticsearch:get_mapping(ServerRef, Index, Type),
+    Response1 = erlasticsearch:put_mapping(PoolName, Index, Type, MappingDoc),
+    true = erlasticsearch_worker:is_200(Response1),
+    Response2 = erlasticsearch:get_mapping(PoolName, Index, Type),
     validate_mapping(Index, Type, Response2),
-    delete_this_index(ServerRef, Index).
+    delete_this_index(PoolName, Index).
 
 validate_mapping(Index, Type, Response) ->
     {body, Data1} = lists:keyfind(body, 1, Response),
@@ -485,77 +478,77 @@ validate_mapping(Index, Type, Response) ->
     {?MAPPING_KEY, [{<<"type">>, ?MAPPING_VALUE}]} = lists:keyfind(?MAPPING_KEY, 1, DataP).
 
 t_delete_mapping(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
-    erlasticsearch:create_index(ServerRef, Index),
+    erlasticsearch:create_index(PoolName, Index),
     MappingDoc = jsx:encode(?MAPPING_DOC(Type)),
-    Response1 = erlasticsearch:put_mapping(ServerRef, Index, Type, MappingDoc),
-    true = erlasticsearch:is_200(Response1),
-    Response2 = erlasticsearch:delete_mapping(ServerRef, Index, Type),
-    true = erlasticsearch:is_200(Response2),
-    delete_this_index(ServerRef, Index).
+    Response1 = erlasticsearch:put_mapping(PoolName, Index, Type, MappingDoc),
+    true = erlasticsearch_worker:is_200(Response1),
+    Response2 = erlasticsearch:delete_mapping(PoolName, Index, Type),
+    true = erlasticsearch_worker:is_200(Response2),
+    delete_this_index(PoolName, Index).
 
 t_aliases(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Alias = random_name(Index),
-    erlasticsearch:create_index(ServerRef, Index),
+    erlasticsearch:create_index(PoolName, Index),
     AliasesDoc = ?ALIASES_DOC(Index, Alias),
-    Response = erlasticsearch:aliases(ServerRef, AliasesDoc),
-    true = erlasticsearch:is_200(Response),
-    delete_this_index(ServerRef, Index).
+    Response = erlasticsearch:aliases(PoolName, AliasesDoc),
+    true = erlasticsearch_worker:is_200(Response),
+    delete_this_index(PoolName, Index).
 
 t_insert_alias_1(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Alias = random_name(Index),
-    erlasticsearch:create_index(ServerRef, Index),
-    Response = erlasticsearch:insert_alias(ServerRef, Index, Alias),
-    true = erlasticsearch:is_200(Response),
-    delete_this_index(ServerRef, Index).
+    erlasticsearch:create_index(PoolName, Index),
+    Response = erlasticsearch:insert_alias(PoolName, Index, Alias),
+    true = erlasticsearch_worker:is_200(Response),
+    delete_this_index(PoolName, Index).
 
 t_insert_alias_2(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Alias = random_name(Index),
-    erlasticsearch:create_index(ServerRef, Index),
+    erlasticsearch:create_index(PoolName, Index),
     Params = [{<<"routing">>, <<"1">>}],
-    Response = erlasticsearch:insert_alias(ServerRef, Index, Alias, Params),
-    true = erlasticsearch:is_200(Response),
-    delete_this_index(ServerRef, Index).
+    Response = erlasticsearch:insert_alias(PoolName, Index, Alias, Params),
+    true = erlasticsearch_worker:is_200(Response),
+    delete_this_index(PoolName, Index).
 
 t_delete_alias(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Alias = random_name(Index),
-    erlasticsearch:create_index(ServerRef, Index),
-    Response1 = erlasticsearch:insert_alias(ServerRef, Index, Alias),
-    true = erlasticsearch:is_200(Response1),
-    Response2 = erlasticsearch:delete_alias(ServerRef, Index, Alias),
-    true = erlasticsearch:is_200(Response2),
-    delete_this_index(ServerRef, Index).
+    erlasticsearch:create_index(PoolName, Index),
+    Response1 = erlasticsearch:insert_alias(PoolName, Index, Alias),
+    true = erlasticsearch_worker:is_200(Response1),
+    Response2 = erlasticsearch:delete_alias(PoolName, Index, Alias),
+    true = erlasticsearch_worker:is_200(Response2),
+    delete_this_index(PoolName, Index).
 
 t_is_alias(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Alias = random_name(Index),
-    erlasticsearch:create_index(ServerRef, Index),
-    Response1 = erlasticsearch:insert_alias(ServerRef, Index, Alias),
-    true = erlasticsearch:is_200(Response1),
-    true = true_response(erlasticsearch:is_alias(ServerRef, Index, Alias)),
-    delete_this_index(ServerRef, Index).
+    erlasticsearch:create_index(PoolName, Index),
+    Response1 = erlasticsearch:insert_alias(PoolName, Index, Alias),
+    true = erlasticsearch_worker:is_200(Response1),
+    true = true_response(erlasticsearch:is_alias(PoolName, Index, Alias)),
+    delete_this_index(PoolName, Index).
 
 t_get_alias(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Alias = random_name(Index),
-    erlasticsearch:create_index(ServerRef, Index),
-    Response1 = erlasticsearch:insert_alias(ServerRef, Index, Alias),
-    true = erlasticsearch:is_200(Response1),
-    Response2 = erlasticsearch:get_alias(ServerRef, Index, Alias),
+    erlasticsearch:create_index(PoolName, Index),
+    Response1 = erlasticsearch:insert_alias(PoolName, Index, Alias),
+    true = erlasticsearch_worker:is_200(Response1),
+    Response2 = erlasticsearch:get_alias(PoolName, Index, Alias),
     validate_alias(Index, Alias, Response2),
-    delete_this_index(ServerRef, Index).
+    delete_this_index(PoolName, Index).
 
 validate_alias(Index, Alias, Response) ->
     {body, Data1} = lists:keyfind(body, 1, Response),
@@ -570,292 +563,284 @@ validate_alias(Index, Alias, Response) ->
     {Alias, _} = lists:keyfind(Alias, 1, Data4).
 
 t_create_index_with_shards(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index_with_shards, Config),
-    create_indices(ServerRef, Index),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    delete_all_indices(PoolName, Index).
 
 t_flush_1(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
+    create_indices(PoolName, Index),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
-                Response = erlasticsearch:flush(ServerRef, FullIndex),
-                true = erlasticsearch:is_200(Response)
+                Response = erlasticsearch:flush(PoolName, FullIndex),
+                true = erlasticsearch_worker:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    delete_all_indices(ServerRef, Index).
+    delete_all_indices(PoolName, Index).
 
 t_flush_list(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    Indexes = 
+    create_indices(PoolName, Index),
+    Indexes =
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 erlasticsearch:join([Index, BX], <<"_">>)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    Response = erlasticsearch:flush(ServerRef, Indexes),
-    true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index).
+    Response = erlasticsearch:flush(PoolName, Indexes),
+    true = erlasticsearch_worker:is_200(Response),
+    delete_all_indices(PoolName, Index).
 
 t_flush_all(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    Response = erlasticsearch:flush(ServerRef),
-    true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    Response = erlasticsearch:flush(PoolName),
+    true = erlasticsearch_worker:is_200(Response),
+    delete_all_indices(PoolName, Index).
 
 t_refresh_1(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
+    create_indices(PoolName, Index),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
-                Response = erlasticsearch:refresh(ServerRef, FullIndex),
-                true = erlasticsearch:is_200(Response)
+                Response = erlasticsearch:refresh(PoolName, FullIndex),
+                true = erlasticsearch_worker:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    delete_all_indices(ServerRef, Index).
+    delete_all_indices(PoolName, Index).
 
 t_refresh_list(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    Indexes = 
+    create_indices(PoolName, Index),
+    Indexes =
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 erlasticsearch:join([Index, BX], <<"_">>)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    Response = erlasticsearch:refresh(ServerRef, Indexes),
-    true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index).
+    Response = erlasticsearch:refresh(PoolName, Indexes),
+    true = erlasticsearch_worker:is_200(Response),
+    delete_all_indices(PoolName, Index).
 
 t_refresh_all(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    Response = erlasticsearch:refresh(ServerRef),
-    true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    Response = erlasticsearch:refresh(PoolName),
+    true = erlasticsearch_worker:is_200(Response),
+    delete_all_indices(PoolName, Index).
 
 t_optimize_1(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
+    create_indices(PoolName, Index),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
-                Response = erlasticsearch:optimize(ServerRef, FullIndex),
-                true = erlasticsearch:is_200(Response)
+                Response = erlasticsearch:optimize(PoolName, FullIndex),
+                true = erlasticsearch_worker:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    delete_all_indices(ServerRef, Index).
+    delete_all_indices(PoolName, Index).
 
 t_optimize_list(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    Indexes = 
+    create_indices(PoolName, Index),
+    Indexes =
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 erlasticsearch:join([Index, BX], <<"_">>)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    Response = erlasticsearch:optimize(ServerRef, Indexes),
-    true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index).
+    Response = erlasticsearch:optimize(PoolName, Indexes),
+    true = erlasticsearch_worker:is_200(Response),
+    delete_all_indices(PoolName, Index).
 
 t_optimize_all(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    Response = erlasticsearch:optimize(ServerRef),
-    true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    Response = erlasticsearch:optimize(PoolName),
+    true = erlasticsearch_worker:is_200(Response),
+    delete_all_indices(PoolName, Index).
 
 t_segments_1(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
+    create_indices(PoolName, Index),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
-                Response = erlasticsearch:segments(ServerRef, FullIndex),
-                true = erlasticsearch:is_200(Response)
+                Response = erlasticsearch:segments(PoolName, FullIndex),
+                true = erlasticsearch_worker:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    delete_all_indices(ServerRef, Index).
+    delete_all_indices(PoolName, Index).
 
 t_segments_list(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    Indexes = 
+    create_indices(PoolName, Index),
+    Indexes =
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 erlasticsearch:join([Index, BX], <<"_">>)
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    Response = erlasticsearch:segments(ServerRef, Indexes),
-    true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index).
+    Response = erlasticsearch:segments(PoolName, Indexes),
+    true = erlasticsearch_worker:is_200(Response),
+    delete_all_indices(PoolName, Index).
 
 t_segments_all(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    create_indices(ServerRef, Index),
-    Response = erlasticsearch:segments(ServerRef),
-    true = erlasticsearch:is_200(Response),
-    delete_all_indices(ServerRef, Index).
+    create_indices(PoolName, Index),
+    Response = erlasticsearch:segments(PoolName),
+    true = erlasticsearch_worker:is_200(Response),
+    delete_all_indices(PoolName, Index).
 
 t_open_index(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
-    process_t_insert_doc(ServerRef, Config),
-    Response = erlasticsearch:close_index(ServerRef, Index),
-    true = erlasticsearch:is_200(Response),
-    Response1 = erlasticsearch:open_index(ServerRef, Index),
-    true = erlasticsearch:is_200(Response1),
-    process_t_delete_doc(ServerRef, Config).
-        
+    process_t_insert_doc(PoolName, Config),
+    Response = erlasticsearch:close_index(PoolName, Index),
+    true = erlasticsearch_worker:is_200(Response),
+    Response1 = erlasticsearch:open_index(PoolName, Index),
+    true = erlasticsearch_worker:is_200(Response1),
+    process_t_delete_doc(PoolName, Config).
+
 
 t_mget_id(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     Query = id_query(),
-    process_t_insert_doc(ServerRef, Config),
-    Result = erlasticsearch:mget_doc(ServerRef, Index, Type, Query),
+    process_t_insert_doc(PoolName, Config),
+    Result = erlasticsearch:mget_doc(PoolName, Index, Type, Query),
     ?DOCUMENT_DEPTH  = docs_from_result(Result),
-    process_t_delete_doc(ServerRef, Config).
+    process_t_delete_doc(PoolName, Config).
 
 t_mget_type(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     Query = id_query(Type),
-    process_t_insert_doc(ServerRef, Config),
-    Result = erlasticsearch:mget_doc(ServerRef, Index, Query),
+    process_t_insert_doc(PoolName, Config),
+    Result = erlasticsearch:mget_doc(PoolName, Index, Query),
     ?DOCUMENT_DEPTH  = docs_from_result(Result),
-    process_t_delete_doc(ServerRef, Config).
+    process_t_delete_doc(PoolName, Config).
 
 t_mget_index(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     Query = id_query(Index, Type),
-    process_t_insert_doc(ServerRef, Config),
-    Result = erlasticsearch:mget_doc(ServerRef, Query),
+    process_t_insert_doc(PoolName, Config),
+    Result = erlasticsearch:mget_doc(PoolName, Query),
     ?DOCUMENT_DEPTH  = docs_from_result(Result),
-    process_t_delete_doc(ServerRef, Config).
+    process_t_delete_doc(PoolName, Config).
 
 t_search(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
-    process_t_insert_doc(ServerRef, Config),
+    process_t_insert_doc(PoolName, Config),
     lists:foreach(fun(X) ->
                 Query = param_query(X),
-                Result = erlasticsearch:search(ServerRef, Index, Type, <<>>, [{q, Query}]),
+                Result = erlasticsearch:search(PoolName, Index, Type, <<>>, [{q, Query}]),
                 % The document is structured so that the number of top level
                 % keys is as (?DOCUMENT_DEPTH + 1 - X)
                 ?DOCUMENT_DEPTH  = hits_from_result(Result) + X - 1
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    process_t_delete_doc(ServerRef, Config).
+    process_t_delete_doc(PoolName, Config).
 
 t_count(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
-    process_t_insert_doc(ServerRef, Config),
+    process_t_insert_doc(PoolName, Config),
     lists:foreach(fun(X) ->
                 Query1 = param_query(X),
                 Query2 = json_query(X),
 
                 % query as parameter
-                Result1 = erlasticsearch:count(ServerRef, Index, Type, <<>>, [{q, Query1}]),
+                Result1 = erlasticsearch:count(PoolName, Index, Type, <<>>, [{q, Query1}]),
                 % The document is structured so that the number of top level
                 % keys is as (?DOCUMENT_DEPTH + 1 - X)
                 ?DOCUMENT_DEPTH  = count_from_result(Result1) + X - 1,
 
                 % query as doc
-                Result2 = erlasticsearch:count(ServerRef, Index, Type, Query2, []),
+                Result2 = erlasticsearch:count(PoolName, Index, Type, Query2, []),
                 % The document is structured so that the number of top level
                 % keys is as (?DOCUMENT_DEPTH + 1 - X)
                 ?DOCUMENT_DEPTH  = count_from_result(Result2) + X - 1
 
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    process_t_delete_doc(ServerRef, Config).
+    process_t_delete_doc(PoolName, Config).
 
 t_delete_by_query_param(Config) ->
-    ServerRef = ?config(pool, Config),
-    % One Index
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     Query1 = param_query(1),
-    process_t_insert_doc(ServerRef, Config),
-    Result1 = erlasticsearch:count(ServerRef, Index, Type, <<>>, [{q, Query1}]),
+    process_t_insert_doc(PoolName, Config),
+    Result1 = erlasticsearch:count(PoolName, Index, Type, <<>>, [{q, Query1}]),
     5 = count_from_result(Result1),
-    DResult1 = erlasticsearch:delete_by_query(ServerRef, Index, Type, <<>>, [{q, Query1}]),
-    true = erlasticsearch:is_200(DResult1),
-    erlasticsearch:flush(ServerRef, Index),
-    DResult1a = erlasticsearch:count(ServerRef, Index, Type, <<>>, [{q, Query1}]),
+    DResult1 = erlasticsearch:delete_by_query(PoolName, Index, Type, <<>>, [{q, Query1}]),
+    true = erlasticsearch_worker:is_200(DResult1),
+    erlasticsearch:flush(PoolName, Index),
+    DResult1a = erlasticsearch:count(PoolName, Index, Type, <<>>, [{q, Query1}]),
     0  = count_from_result(DResult1a),
 
-    % All Indices
-    process_t_insert_doc(ServerRef, Config),
-    ADResult1 = erlasticsearch:delete_by_query(ServerRef, <<>>, [{q, Query1}]),
-    true = erlasticsearch:is_200(ADResult1),
-    erlasticsearch:flush(ServerRef, Index),
-    ADResult1a = erlasticsearch:count(ServerRef, <<>>, [{q, Query1}]),
+    process_t_insert_doc(PoolName, Config),
+    ADResult1 = erlasticsearch:delete_by_query(PoolName, <<>>, [{q, Query1}]),
+    true = erlasticsearch_worker:is_200(ADResult1),
+    erlasticsearch:flush(PoolName, Index),
+    ADResult1a = erlasticsearch:count(PoolName, <<>>, [{q, Query1}]),
     0  = count_from_result(ADResult1a).
-    % Don't need to delete docs, 'cos they are already deleted
-%    process_t_delete_doc(ServerRef, Config).
 
 t_delete_by_query_doc(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     Query1 = param_query(1),
     Query2 = json_query(1),
-    process_t_insert_doc(ServerRef, Config),
-    Result1 = erlasticsearch:count(ServerRef, Index, Type, <<>>, [{q, Query1}]),
+    process_t_insert_doc(PoolName, Config),
+    Result1 = erlasticsearch:count(PoolName, Index, Type, <<>>, [{q, Query1}]),
     5 = count_from_result(Result1),
-    DResult1 = erlasticsearch:delete_by_query(ServerRef, Index, Type, Query2, []),
-    true = erlasticsearch:is_200(DResult1),
-    erlasticsearch:flush(ServerRef, Index),
-    DResult1a = erlasticsearch:count(ServerRef, Index, Type, <<>>, [{q, Query1}]),
+    DResult1 = erlasticsearch:delete_by_query(PoolName, Index, Type, Query2, []),
+    true = erlasticsearch_worker:is_200(DResult1),
+    erlasticsearch:flush(PoolName, Index),
+    DResult1a = erlasticsearch:count(PoolName, Index, Type, <<>>, [{q, Query1}]),
     0  = count_from_result(DResult1a),
-%    process_t_delete_doc(ServerRef, Config).
 
-    % All Indices
-    process_t_insert_doc(ServerRef, Config),
-    ADResult1 = erlasticsearch:delete_by_query(ServerRef, Query2),
-    true = erlasticsearch:is_200(ADResult1),
-    erlasticsearch:flush(ServerRef, Index),
-    ADResult1a = erlasticsearch:count(ServerRef, <<>>, [{q, Query1}]),
+    process_t_insert_doc(PoolName, Config),
+    ADResult1 = erlasticsearch:delete_by_query(PoolName, Query2),
+    true = erlasticsearch_worker:is_200(ADResult1),
+    erlasticsearch:flush(PoolName, Index),
+    ADResult1a = erlasticsearch:count(PoolName, <<>>, [{q, Query1}]),
     0  = count_from_result(ADResult1a).
-    % Don't need to delete docs, 'cos they are already deleted
-%    process_t_delete_doc(ServerRef, Config).
 
 
 id_query() ->
-    Ids = lists:map(fun(X) -> 
+    Ids = lists:map(fun(X) ->
                     BX = list_to_binary(integer_to_list(X)),
-                    [{<<"_id">>, BX}] 
+                    [{<<"_id">>, BX}]
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     jsx:encode([{docs, Ids}]).
 
 id_query(Type) ->
-    Ids = lists:map(fun(X) -> 
+    Ids = lists:map(fun(X) ->
                     BX = list_to_binary(integer_to_list(X)),
-                    [{<<"_type">>, Type}, {<<"_id">>, BX}] 
+                    [{<<"_type">>, Type}, {<<"_id">>, BX}]
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     jsx:encode([{docs, Ids}]).
 
 id_query(Index, Type) ->
-    Ids = lists:map(fun(X) -> 
+    Ids = lists:map(fun(X) ->
                     BX = list_to_binary(integer_to_list(X)),
-                    [{<<"_index">>, Index}, {<<"_type">>, Type}, {<<"_id">>, BX}] 
+                    [{<<"_index">>, Index}, {<<"_type">>, Type}, {<<"_id">>, BX}]
             end, lists:seq(1, ?DOCUMENT_DEPTH)),
     jsx:encode([{docs, Ids}]).
 
@@ -905,51 +890,51 @@ count_from_result(Result) ->
     end.
 
 t_bulk(Config) ->
-    ServerRef = ?config(pool, Config),
-    process_t_bulk(ServerRef, Config).
+    PoolName = ?config(pool, Config),
+    process_t_bulk(PoolName, Config).
 
 t_insert_doc(Config) ->
-    ServerRef = ?config(pool, Config),
-    process_t_insert_doc(ServerRef, Config),
-    process_t_delete_doc(ServerRef, Config).
+    PoolName = ?config(pool, Config),
+    process_t_insert_doc(PoolName, Config),
+    process_t_delete_doc(PoolName, Config).
 
 t_is_doc(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
-    process_t_insert_doc(ServerRef, Config),
+    process_t_insert_doc(PoolName, Config),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                true = true_response(erlasticsearch:is_doc(ServerRef, Index, Type, BX))
+                true = true_response(erlasticsearch:is_doc(PoolName, Index, Type, BX))
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    process_t_delete_doc(ServerRef, Config).
+    process_t_delete_doc(PoolName, Config).
 
 t_get_doc(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
-    process_t_insert_doc(ServerRef, Config),
+    process_t_insert_doc(PoolName, Config),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                Response = erlasticsearch:get_doc(ServerRef, Index, Type, BX),
-                true = erlasticsearch:is_200(Response)
+                Response = erlasticsearch:get_doc(PoolName, Index, Type, BX),
+                true = erlasticsearch_worker:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    process_t_delete_doc(ServerRef, Config).
+    process_t_delete_doc(PoolName, Config).
 
 t_update_doc(Config) ->
-    ServerRef = ?config(pool, Config),
+    PoolName = ?config(pool, Config),
     Index = ?config(index, Config),
     Type = ?config(type, Config),
-    process_t_insert_doc(ServerRef, Config),
+    process_t_insert_doc(PoolName, Config),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 Doc = ?UPDATE_DOC,
-                Response1 = erlasticsearch:update_doc(ServerRef, Index, Type, BX, Doc),
-                true = erlasticsearch:is_200(Response1),
-                Response2 = erlasticsearch:get_doc(ServerRef, Index, Type, BX),
+                Response1 = erlasticsearch:update_doc(PoolName, Index, Type, BX, Doc),
+                true = erlasticsearch_worker:is_200(Response1),
+                Response2 = erlasticsearch:get_doc(PoolName, Index, Type, BX),
                 validate_update(Response2)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    process_t_delete_doc(ServerRef, Config).
+    process_t_delete_doc(PoolName, Config).
 
 validate_update(Response) ->
     {body, Data1} = lists:keyfind(body, 1, Response),
@@ -963,92 +948,89 @@ validate_update(Response) ->
     {?UPDATE_KEY, ?UPDATE_VALUE} = lists:keyfind(?UPDATE_KEY, 1, Data3).
 
 t_delete_doc(Config) ->
-    ServerRef = ?config(pool, Config),
-    process_t_insert_doc(ServerRef, Config),
-    process_t_delete_doc(ServerRef, Config).
+    PoolName = ?config(pool, Config),
+    process_t_insert_doc(PoolName, Config),
+    process_t_delete_doc(PoolName, Config).
 
-process_t_insert_doc(ServerRef, Config) ->
+process_t_insert_doc(PoolName, Config) ->
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                Response = erlasticsearch:insert_doc(ServerRef, Index, 
+                Response = erlasticsearch:insert_doc(PoolName, Index,
                                                      Type, BX, json_document(X)),
-                true = erlasticsearch:is_200_or_201(Response)
+                true = erlasticsearch_worker:is_200_or_201(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    erlasticsearch:flush(ServerRef, Index).
+    erlasticsearch:flush(PoolName, Index).
 
-process_t_bulk(ServerRef, Config) ->
+process_t_bulk(PoolName, Config) ->
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     lists:foreach(fun(X) ->
-                Response1 = erlasticsearch:bulk(ServerRef, <<>>, 
+                Response1 = erlasticsearch:bulk(PoolName, <<>>,
                                                 <<>>, bulk_document(<<>>, <<>>, X)),
-                true = erlasticsearch:is_200_or_201(Response1),
-                Response2 = erlasticsearch:bulk(ServerRef, Index, 
+                true = erlasticsearch_worker:is_200_or_201(Response1),
+                Response2 = erlasticsearch:bulk(PoolName, Index,
                                                 Type, bulk_document(Index, <<>>, X)),
-                true = erlasticsearch:is_200_or_201(Response2),
-                Response3 = erlasticsearch:bulk(ServerRef, Index, 
+                true = erlasticsearch_worker:is_200_or_201(Response2),
+                Response3 = erlasticsearch:bulk(PoolName, Index,
                                                Type, bulk_document(Index, Type, X)),
-                true = erlasticsearch:is_200_or_201(Response3)
+                true = erlasticsearch_worker:is_200_or_201(Response3)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    erlasticsearch:flush(ServerRef, Index).
+    erlasticsearch:flush(PoolName, Index).
 
-process_t_delete_doc(ServerRef, Config) ->
+process_t_delete_doc(PoolName, Config) ->
     Index = ?config(index, Config),
     Type = ?config(type, Config),
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
-                Response = erlasticsearch:delete_doc(ServerRef, Index, Type, BX),
-                true = erlasticsearch:is_200(Response)
+                Response = erlasticsearch:delete_doc(PoolName, Index, Type, BX),
+                true = erlasticsearch_worker:is_200(Response)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    erlasticsearch:flush(ServerRef, Index).
+    erlasticsearch:flush(PoolName, Index).
 
-%% Test helpers
-% Create a bunch-a indices
-create_indices(ServerRef, Index) ->
+create_indices(PoolName, Index) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
-                erlasticsearch:create_index(ServerRef, FullIndex),
-                erlasticsearch:flush(ServerRef, Index)
+                erlasticsearch:create_index(PoolName, FullIndex),
+                erlasticsearch:flush(PoolName, Index)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
-are_indices_1(ServerRef, Index) ->
+are_indices_1(PoolName, Index) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
-                true = true_response(erlasticsearch:is_index(ServerRef, FullIndex))
+                true = true_response(erlasticsearch:is_index(PoolName, FullIndex))
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
-are_indices_all(ServerRef, Index) ->
-    FullIndexList = 
+are_indices_all(PoolName, Index) ->
+    FullIndexList =
     lists:map(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 erlasticsearch:join([Index, BX], <<"_">>)
         end, lists:seq(1, ?DOCUMENT_DEPTH)),
-    true = true_response(erlasticsearch:is_index(ServerRef, FullIndexList)).
+    true = true_response(erlasticsearch:is_index(PoolName, FullIndexList)).
 
-delete_all_indices(ServerRef, Config) when is_list(Config) ->
+delete_all_indices(PoolName, Config) when is_list(Config) ->
     Index = ?config(index, Config),
     IndexWithShards = erlasticsearch:join([Index, <<"with_shards">>], <<"_">>),
-    delete_all_indices(ServerRef, Index),
-    delete_all_indices(ServerRef, IndexWithShards),
-    erlasticsearch:flush(ServerRef);
+    delete_all_indices(PoolName, Index),
+    delete_all_indices(PoolName, IndexWithShards),
+    erlasticsearch:flush(PoolName);
 
-% Optionally check to see if the indices exist before trying to delete
-delete_all_indices(ServerRef, Index) when is_binary(Index) ->
+delete_all_indices(PoolName, Index) when is_binary(Index) ->
     lists:foreach(fun(X) ->
                 BX = list_to_binary(integer_to_list(X)),
                 FullIndex = erlasticsearch:join([Index, BX], <<"_">>),
-                delete_this_index(ServerRef, FullIndex)
+                delete_this_index(PoolName, FullIndex)
         end, lists:seq(1, ?DOCUMENT_DEPTH)).
 
-delete_this_index(ServerRef, Index) ->
-    case true_response(erlasticsearch:is_index(ServerRef, Index)) of
+delete_this_index(PoolName, Index) ->
+    case true_response(erlasticsearch:is_index(PoolName, Index)) of
         true ->
-            Response = erlasticsearch:delete_index(ServerRef, Index),
-            true = erlasticsearch:is_200(Response);
+            Response = erlasticsearch:delete_index(PoolName, Index),
+            true = erlasticsearch_worker:is_200(Response);
         false -> true
     end.
 
@@ -1056,11 +1038,11 @@ json_document(N) ->
     jsx:encode(document(N)).
 
 document(N) ->
-    lists:foldl(fun(X, Acc) -> 
+    lists:foldl(fun(X, Acc) ->
                 Tuple = case X of
-                    1 -> 
+                    1 ->
                         [{key(1), value(1)}];
-                    X -> 
+                    X ->
                         [{key(X), value(X)},
                          {sub(X), document(N-1)}]
                 end,
@@ -1135,8 +1117,7 @@ start(Config) ->
     PoolOptions = ?config(pool_options, Config),
     reltool_util:application_start(jsx),
     reltool_util:application_start(erlasticsearch),
-    erlasticsearch:start_pool(PoolName, PoolOptions, ConnectionOptions)
-    .
+    erlasticsearch:start_pool(PoolName, PoolOptions, ConnectionOptions).
 
 stop(Config) ->
     PoolName = ?config(pool, Config),
