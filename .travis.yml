@@ -1,0 +1,15 @@
+# -*- mode: yaml -*-
+
+before_script:
+- sudo /usr/share/elasticsearch/bin/plugin  -install elasticsearch/elasticsearch-transport-thrift/2.4.1
+- sudo service elasticsearch restart
+
+script: make clean deps compile test
+
+language: erlang
+
+otp_release:
+- R16B02
+
+services:
+- elasticsearch
