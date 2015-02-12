@@ -50,3 +50,8 @@ console:
 
 test-console: test
 	$(ERL) -sname $(APPLICATION)_test $(TEST_EPATH) -config app
+
+travis-check-logs:
+	test -z "$(shell find apps/*/logs -name '*.log' -exec egrep '(init|end)_per_.* (failed|crashed)' {} +)" && \
+	test -z "$(shell find ct_log/*/log -name '*.log' -exec egrep '(init|end)_per_.* (failed|crashed)' {} +)" && \
+	test -z "$(shell find logs/* -name '*.log' -exec egrep '(init|end)_per_.* (failed|crashed)' {} +)"
