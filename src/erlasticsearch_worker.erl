@@ -78,7 +78,8 @@ handle_call(Call, _From, #state{connection={some, Conn1}, binary_response=IsBinR
             {RequestResult, State2} =
                 case do_request(RestRequest, Conn1) of
                     {{error, {connection_error, _}}=Result, _Conn2} ->
-                        {Result, State1#state{connection=none}};
+                        State3 = state_connection_close(State2),
+                        {Result, State3};
                     {{error, _}=Result, Conn2} ->
                         {Result, State1#state{connection={some, Conn2}}};
                     {{ok, Resp1}, Conn2} ->
