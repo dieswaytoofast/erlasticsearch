@@ -75,11 +75,11 @@ handle_call(Call, _From, #state{connection={some, Conn1}, binary_response=IsBinR
             State2 = state_connection_close(State1),
             {stop, unhandled_call, State2};
         {ok, RestRequest} ->
-            {RequestResult, State2} =
+            {RequestResult, NewState} =
                 case do_request(RestRequest, Conn1) of
                     {{error, {connection_error, _}}=Result, _Conn2} ->
-                        State3 = state_connection_close(State2),
-                        {Result, State3};
+                        State2 = state_connection_close(State1),
+                        {Result, State2};
                     {{error, _}=Result, Conn2} ->
                         {Result, State1#state{connection={some, Conn2}}};
                     {{ok, Resp1}, Conn2} ->
@@ -87,7 +87,7 @@ handle_call(Call, _From, #state{connection={some, Conn1}, binary_response=IsBinR
                         Resp3 = maybe_make_boolean_response(Call, Resp2, IsBinResp),
                         {{ok, Resp3}, State1#state{connection={some, Conn2}}}
                 end,
-            {reply, RequestResult, State2}
+            {reply, RequestResult, NewState}
     end.
 
 handle_cast(_, State1) ->
