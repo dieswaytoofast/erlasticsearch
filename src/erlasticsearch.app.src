@@ -22,7 +22,8 @@
                   sasl,
 %                  lager,
                   poolboy,
-                  thrift
+                  thrift,
+                  quintana
                  ]},
   {mod, {erlasticsearch_app, []}},
   {env, []}
