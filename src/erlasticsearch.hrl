@@ -76,3 +76,5 @@
 
 % Shortcuts
 -define(ALL, <<"_all">>).
+
+-define(POOL_IN_USE_METRIC, <<"erlasticsearch.pool.inuse">>).
