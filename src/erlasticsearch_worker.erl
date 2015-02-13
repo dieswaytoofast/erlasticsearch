@@ -110,7 +110,7 @@ handle_info(?SIGNAL_CONNECTION_REFRESH, #state
                         {{ok, _}, Conn2} ->
                             {some, Conn2};
                         {{error, _}, Conn2} ->
-                            ok = thrift_client:close(Conn2),
+                            _ = thrift_client:close(Conn2),
                             none
                     end,
                 State1#state{connection=ConnOpt2}
@@ -154,7 +154,7 @@ state_connection_try_open(#state{connection_options=ConnParams}=State) ->
 -spec state_connection_close(state()) ->
     state().
 state_connection_close(#state{connection={some, ConnOpt}}=State) ->
-    {_, ok} = thrift_client:close(ConnOpt),
+    _ = thrift_client:close(ConnOpt),
     State#state{connection=none};
 state_connection_close(#state{connection=none}=State) ->
     State.
