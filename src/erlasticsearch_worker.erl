@@ -63,7 +63,7 @@ init([PoolName, ConnectionOptions1]) ->
     {ok, State}.
 
 handle_call({stop}, _, State1) ->
-    State2 = state_connection_close(State1),
+    State2 = state_connection_close(State1, stop),
     {stop, normal, ok, State2};
 
 handle_call(_, _, #state{connection=none}=State) ->
@@ -72,13 +72,13 @@ handle_call(Call, _From, #state{connection={some, Conn1}, binary_response=IsBinR
     case rest_request_of_call(Call) of
         {error, {unknown_call, _}} ->
             % TODO: What is the point of handling unknown_call?
-            State2 = state_connection_close(State1),
+            State2 = state_connection_close(State1, unknown_call),
             {stop, unhandled_call, State2};
         {ok, RestRequest} ->
             {RequestResult, NewState} =
                 case do_request(RestRequest, Conn1) of
                     {{error, {connection_error, _}}=Result, _Conn2} ->
-                        State2 = state_connection_close(State1),
+                        State2 = state_connection_close(State1, connection_error),
                         {Result, State2};
                     {{error, _}=Result, Conn2} ->
                         {Result, State1#state{connection={some, Conn2}}};
@@ -91,7 +91,7 @@ handle_call(Call, _From, #state{connection={some, Conn1}, binary_response=IsBinR
     end.
 
 handle_cast(_, State1) ->
-    State2 = state_connection_close(State1),
+    State2 = state_connection_close(State1, unhandled_cast),
     {stop, unhandled_cast, State2}.
 
 handle_info(?SIGNAL_CONNECTION_REFRESH, #state
@@ -119,13 +119,13 @@ handle_info(?SIGNAL_CONNECTION_REFRESH, #state
     ok = schedule_connection_refresh(ConnRefreshInterval),
     {noreply, State2};
 handle_info({'EXIT', _, shutdown}, State1) ->
-    State2 = state_connection_close(State1),
+    State2 = state_connection_close(State1, exit),
     {stop, normal, State2};
 handle_info(_, State) ->
     {stop, unhandled_info, State}.
 
 terminate(_Reason, State1) ->
-    _State2 = state_connection_close(State1),
+    _State2 = state_connection_close(State1, terminate),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -152,13 +152,15 @@ state_connection_try_open(#state{connection_options=ConnParams}=State) ->
     ConnOpt = hope_option:of_result(connect(ConnParams)),
     State#state{connection=ConnOpt}.
 
--spec state_connection_close(state()) ->
+-spec state_connection_close(state(), atom()) ->
     state().
-state_connection_close(#state{connection={some, ConnOpt}}=State) ->
-    quintana:notify_spiral({?WORKER_DISCONNECTED_METRIC, 1}),
+state_connection_close(#state{connection={some, ConnOpt}}=State, Reason) ->
+    ReasonBin = atom_to_binary(Reason, latin1),
+    MetricReason = <<?WORKER_DISCONNECTED_METRIC/binary, ReasonBin/binary>>,
+    quintana:notify_spiral({MetricReason, 1}),
     _ = thrift_client:close(ConnOpt),
     State#state{connection=none};
-state_connection_close(#state{connection=none}=State) ->
+state_connection_close(#state{connection=none}=State, _Reason) ->
     State.
 
 
