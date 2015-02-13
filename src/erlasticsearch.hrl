@@ -78,3 +78,4 @@
 -define(ALL, <<"_all">>).
 
 -define(POOL_IN_USE_METRIC, <<"erlasticsearch.pool.inuse">>).
+-define(WORKER_DISCONNECTED_METRIC, <<"erlasticsearch.worker.disconnected">>).
