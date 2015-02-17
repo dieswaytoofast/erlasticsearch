@@ -421,10 +421,13 @@ pool_call(PoolName, Command, Timeout) ->
     quintana:notify_counter({?POOL_IN_USE_METRIC, {inc, 1}}),
     Result = poolboy:transaction(PoolName, Call),
     quintana:notify_counter({?POOL_IN_USE_METRIC, {dec, 1}}),
-    lager:debug("Erlasticsearch call: ~p, Result: ~p", [Command, Result]),
-    % TODO: Propogate full result.
-    {ok, Response} = Result,
-    Response.
+    case Result of
+        {ok, Response} ->
+            Response;
+        {error, _} = E->
+            lager:error("Erlasticsearch error: ~p", [{E, Command}]),
+            E
+    end.
 
 -spec get_env(Key :: atom(), Default :: term()) -> term().
 get_env(Key, Default) ->
