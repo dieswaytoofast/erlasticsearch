@@ -418,9 +418,8 @@ get_alias(PoolName, Index, Alias) when is_binary(Index) andalso is_binary(Alias)
     response().
 pool_call(PoolName, Command, Timeout) ->
     Call = fun(Worker) -> gen_server:call(Worker, Command, Timeout) end,
-    quintana:notify_counter({?POOL_IN_USE_METRIC, {inc, 1}}),
     Result = poolboy:transaction(PoolName, Call),
-    quintana:notify_counter({?POOL_IN_USE_METRIC, {dec, 1}}),
+    quintana:notify_spiral({?POOL_IN_USE_METRIC, 1}),
     case Result of
         {ok, Response} ->
             Response;
