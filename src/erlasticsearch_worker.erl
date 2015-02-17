@@ -109,8 +109,17 @@ handle_info(?SIGNAL_CONNECTION_REFRESH, #state
                     case do_request(RestRequest, Conn1) of
                         {{ok, _}, Conn2} ->
                             {some, Conn2};
-                        {{error, _}, Conn2} ->
-                            MetricReason = <<?WORKER_DISCONNECTED_METRIC/binary, <<"handle_info">>/binary>>,
+                        {{error, Reason}, Conn2} ->
+                            error_logger:error_msg("Erlasticsearch liveness check error: ~p", [Reason]),
+                            ReasonBin =
+                                case Reason of
+                                    {ErrorType, {Msg, _}} when ErrorType == call_error orelse
+                                                               ErrorType == call_exception ->
+                                        atom_to_binary(Msg, latin1);
+                                    {connection_error, Msg} ->
+                                        atom_to_binary(Msg, latin1)
+                                end,
+                            MetricReason = <<?WORKER_DISCONNECTED_METRIC/binary, ReasonBin/binary>>,
                             quintana:notify_spiral({MetricReason, 1}),
                             _ = thrift_client:close(Conn2),
                             none
