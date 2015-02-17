@@ -110,7 +110,8 @@ handle_info(?SIGNAL_CONNECTION_REFRESH, #state
                         {{ok, _}, Conn2} ->
                             {some, Conn2};
                         {{error, _}, Conn2} ->
-                            quintana:notify_spiral({?WORKER_DISCONNECTED_METRIC, 1}),
+                            MetricReason = <<?WORKER_DISCONNECTED_METRIC/binary, <<"handle_info">>/binary>>,
+                            quintana:notify_spiral({MetricReason, 1}),
                             _ = thrift_client:close(Conn2),
                             none
                     end,
