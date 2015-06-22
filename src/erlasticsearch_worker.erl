@@ -13,16 +13,13 @@
 
 -include("erlasticsearch.hrl").
 
--define(ONE_SECOND, 1000).
--define(ONE_MINUTE, 60 * ?ONE_SECOND).
 -define(SIGNAL_CONNECTION_REFRESH, connection_refresh).
 
 -record(state, {
         binary_response = false :: boolean(),
         connection = none       :: hope_option:t(connection()),
         connection_options = [] :: params(),
-        % TODO: connection_refresh_interval needs to be configurable.
-        connection_refresh_interval = ?ONE_MINUTE :: erlang:time(),
+        connection_refresh_interval = timer:seconds(45) :: non_neg_integer(),
         pool_name               :: pool_name()
         }).
 
@@ -147,7 +144,7 @@ code_change(_OldVsn, State, _Extra) ->
 schedule_connection_refresh() ->
     schedule_connection_refresh(0).
 
--spec schedule_connection_refresh(erlang:time()) ->
+-spec schedule_connection_refresh(non_neg_integer()) ->
     ok.
 schedule_connection_refresh(0) ->
     _ = self() ! ?SIGNAL_CONNECTION_REFRESH,
