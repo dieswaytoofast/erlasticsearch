@@ -21,6 +21,7 @@
 -define(CHECKSPEC(M,F,N), true = proper:check_spec({M,F,N})).
 -define(PROPTEST(A), true = proper:quickcheck(A())).
 
+-define(TIMEOUT, 45000).
 -define(NUMTESTS, 500).
 -define(DOCUMENT_DEPTH, 5).
 -define(THREE_SHARDS, <<"{\"settings\":{\"number_of_shards\":3}}">>).
@@ -1117,6 +1118,8 @@ start(Config) ->
     PoolOptions = ?config(pool_options, Config),
     reltool_util:application_start(jsx),
     reltool_util:application_start(erlasticsearch),
+    % Increase timeout for local testing of elasticsearch
+    application:set_env(erlasticsearch, worker_timeout, ?TIMEOUT),
     erlasticsearch:start_pool(PoolName, PoolOptions, ConnectionOptions).
 
 stop(Config) ->

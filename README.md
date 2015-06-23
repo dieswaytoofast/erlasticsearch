@@ -78,8 +78,8 @@ TL;DR
       * The default is ```binary_response = true```. In this case, you ```{body, Body}``` is just going to contain the entire payload from Elasticsearch as a single binary.
          * e.g. --> ```{body , <<"{\"ok\":true,\"acknowledged\":true}">>}```
       * If you set ```binary_response = false```, ```{body, Body}``` will contain the JSON as a decoded tuple-list (basically, what you get by running ```jsx:decode(Body)```)
-         * ```{body , [ {<<"ok">> , true} , {<<"acknowledged">> , true} ] }```
-
+         * ```{body , [ {<<"ok">> , true} , {<<"acknowledged">> , true} ] }```                  
+1. The default timeout for workers is 5000ms.  If you're ES instance is slow (or you are running CT), you can bump this by setting the `worker_timeout` environment variable (programmatically, or in app.config.  Take a look at `test/erlasticsearch_SUITE.erl:1122`)
 
 
 

@@ -13,16 +13,13 @@
 
 -include("erlasticsearch.hrl").
 
--define(ONE_SECOND, 1000).
--define(ONE_MINUTE, 60 * ?ONE_SECOND).
 -define(SIGNAL_CONNECTION_REFRESH, connection_refresh).
 
 -record(state, {
         binary_response = false :: boolean(),
         connection = none       :: hope_option:t(connection()),
         connection_options = [] :: params(),
-        % TODO: connection_refresh_interval needs to be configurable.
-        connection_refresh_interval = ?ONE_MINUTE :: erlang:time(),
+        connection_refresh_interval = ?DEFAULT_CONNECTION_REFRESH_INTERVAL :: erlang:time(),
         pool_name               :: pool_name()
         }).
 
@@ -54,10 +51,18 @@ init([PoolName, ConnectionOptions1]) ->
             false ->
                 {true, ConnectionOptions1}
         end,
+    {ConnectionRefreshInterval, ConnectionOptions3} =
+        case lists:keytake(connection_refresh_interval, 1, ConnectionOptions2) of
+            {value, {connection_refresh_interval, Interval}, Options2} ->
+                {Interval, Options2};
+            false ->
+                {?DEFAULT_CONNECTION_REFRESH_INTERVAL, ConnectionOptions2}
+        end,
     State = #state
         { pool_name          = PoolName
         , binary_response    = DecodeResponse
-        , connection_options = ConnectionOptions2
+        , connection_options = ConnectionOptions3
+        , connection_refresh_interval = ConnectionRefreshInterval
         },
     ok = schedule_connection_refresh(),
     {ok, State}.
@@ -316,7 +321,7 @@ process_response(true, #restResponse{status = Status, body = Body}) ->
 process_response(false, #restResponse{status = Status, body = Body}) ->
     % TODO: What does this try/catch block mean?
     try
-        [{status, Status}, {body, jsx:decode(Body)}]
+        [{status, Status}, {body, jsx:decode(Body, [repeat_keys])}]
     catch
         error:badarg ->
             [{status, Status}, {body, Body}]

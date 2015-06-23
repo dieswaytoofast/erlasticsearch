@@ -34,18 +34,22 @@
 
 
 %% Defaults
--define(DEFAULT_THRIFT_HOST, "localhost").
--define(DEFAULT_THRIFT_PORT, 9500).
+%%% PoolBoy
+-define(DEFAULT_WORKER_TIMEOUT, 5000).
 -define(DEFAULT_POOL_NAME, <<"default_erlasticsearch_pool">>).
 -define(DEFAULT_POOL_OPTIONS, [{size, 5},
                                {max_overflow, 10}
                               ]).
 
+%%% Thrift
+-define(DEFAULT_THRIFT_HOST, "localhost").
+-define(DEFAULT_THRIFT_PORT, 9500).
+-define(DEFAULT_CONNECTION_REFRESH_INTERVAL, 60000).
 -define(DEFAULT_CONNECTION_OPTIONS, [{thrift_host, ?DEFAULT_THRIFT_HOST},
                                      {thrift_port, ?DEFAULT_THRIFT_PORT},
-                                     {binary_response, true}
+                                     {binary_response, true},
+                                     {connection_refresh_interval, ?DEFAULT_CONNECTION_REFRESH_INTERVAL}
                                     ]).
--define(MAX_RECONNECT_INTERVAL, 30000).
 
 %% Errors
 -define(NO_SUCH_SEQUENCE, no_such_sequence).

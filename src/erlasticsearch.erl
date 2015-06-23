@@ -105,7 +105,7 @@ stop_pool(PoolName) ->
 
 -spec health(pool_name()) -> response().
 health(PoolName) ->
-    pool_call(PoolName, {health}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {health}).
 
 -spec cluster_state(pool_name()) -> response().
 cluster_state(PoolName) ->
@@ -121,7 +121,7 @@ state(PoolName) ->
 
 -spec state(pool_name(), params()) -> response().
 state(PoolName, Params) when is_list(Params) ->
-    pool_call(PoolName, {state, Params}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {state, Params}).
 
 -spec nodes_info(pool_name()) -> response().
 nodes_info(PoolName) ->
@@ -135,7 +135,7 @@ nodes_info(PoolName, NodeNames) when is_list(NodeNames) ->
 
 -spec nodes_info(pool_name(), [node_name()], params()) -> response().
 nodes_info(PoolName, NodeNames, Params) when is_list(NodeNames), is_list(Params) ->
-    pool_call(PoolName, {nodes_info, NodeNames, Params}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {nodes_info, NodeNames, Params}).
 
 -spec nodes_stats(pool_name()) -> response().
 nodes_stats(PoolName) ->
@@ -149,19 +149,19 @@ nodes_stats(PoolName, NodeNames) when is_list(NodeNames) ->
 
 -spec nodes_stats(pool_name(), [node_name()], params()) -> response().
 nodes_stats(PoolName, NodeNames, Params) when is_list(NodeNames), is_list(Params) ->
-    pool_call(PoolName, {nodes_stats, NodeNames, Params}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {nodes_stats, NodeNames, Params}).
 
 -spec status(pool_name(), index() | [index()]) -> response().
 status(PoolName, Index) when is_binary(Index) ->
     status(PoolName, [Index]);
 status(PoolName, Indexes) when is_list(Indexes)->
-    pool_call(PoolName, {status, Indexes}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {status, Indexes}).
 
 -spec indices_stats(pool_name(), index() | [index()]) -> response().
 indices_stats(PoolName, Index) when is_binary(Index) ->
     indices_stats(PoolName, [Index]);
 indices_stats(PoolName, Indexes) when is_list(Indexes)->
-    pool_call(PoolName, {indices_stats, Indexes}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {indices_stats, Indexes}).
 
 -spec create_index(pool_name(), index()) -> response().
 create_index(PoolName, Index) when is_binary(Index) ->
@@ -169,7 +169,7 @@ create_index(PoolName, Index) when is_binary(Index) ->
 
 -spec create_index(pool_name(), index(), doc()) -> response().
 create_index(PoolName, Index, Doc) when is_binary(Index) andalso (is_binary(Doc) orelse is_list(Doc)) ->
-    pool_call(PoolName, {create_index, Index, Doc}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {create_index, Index, Doc}).
 
 -spec delete_index(pool_name()) -> response().
 delete_index(PoolName) ->
@@ -179,21 +179,21 @@ delete_index(PoolName) ->
 delete_index(PoolName, Index) when is_binary(Index) ->
     delete_index(PoolName, [Index]);
 delete_index(PoolName, Index) when is_list(Index) ->
-    pool_call(PoolName, {delete_index, Index}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {delete_index, Index}).
 
 -spec open_index(pool_name(), index()) -> response().
 open_index(PoolName, Index) when is_binary(Index) ->
-    pool_call(PoolName, {open_index, Index}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {open_index, Index}).
 
 -spec close_index(pool_name(), index()) -> response().
 close_index(PoolName, Index) when is_binary(Index) ->
-    pool_call(PoolName, {close_index, Index}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {close_index, Index}).
 
 -spec is_index(pool_name(), index() | [index()]) -> response().
 is_index(PoolName, Index) when is_binary(Index) ->
     is_index(PoolName, [Index]);
 is_index(PoolName, Indexes) when is_list(Indexes) ->
-    pool_call(PoolName, {is_index, Indexes}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {is_index, Indexes}).
 
 -spec count(pool_name(), doc()) -> response().
 count(PoolName, Doc) when (is_binary(Doc) orelse is_list(Doc)) ->
@@ -217,7 +217,7 @@ count(PoolName, Indexes, Type, Doc, Params) when is_list(Indexes) andalso is_bin
 count(PoolName, Index, Types, Doc, Params) when is_binary(Index) andalso is_list(Types) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     count(PoolName, [Index], Types, Doc, Params);
 count(PoolName, Indexes, Types, Doc, Params) when is_list(Indexes) andalso is_list(Types) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
-    pool_call(PoolName, {count, Indexes, Types, Doc, Params}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {count, Indexes, Types, Doc, Params}).
 
 -spec delete_by_query(pool_name(), doc()) -> response().
 delete_by_query(PoolName, Doc) when (is_binary(Doc) orelse is_list(Doc)) ->
@@ -241,7 +241,7 @@ delete_by_query(PoolName, Indexes, Type, Doc, Params) when is_list(Indexes) anda
 delete_by_query(PoolName, Index, Types, Doc, Params) when is_binary(Index) andalso is_list(Types) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
     delete_by_query(PoolName, [Index], Types, Doc, Params);
 delete_by_query(PoolName, Indexes, Types, Doc, Params) when is_list(Indexes) andalso is_list(Types) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
-    pool_call(PoolName, {delete_by_query, Indexes, Types, Doc, Params}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {delete_by_query, Indexes, Types, Doc, Params}).
 
 -spec is_type(pool_name(), index() | [index()], type() | [type()]) -> response().
 is_type(PoolName, Index, Type) when is_binary(Index), is_binary(Type) ->
@@ -251,7 +251,7 @@ is_type(PoolName, Indexes, Type) when is_list(Indexes), is_binary(Type) ->
 is_type(PoolName, Index, Types) when is_binary(Index), is_list(Types) ->
     is_type(PoolName, [Index], Types);
 is_type(PoolName, Indexes, Types) when is_list(Indexes), is_list(Types) ->
-    pool_call(PoolName, {is_type, Indexes, Types}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {is_type, Indexes, Types}).
 
 -spec insert_doc(pool_name(), index(), type(), id(), doc()) -> response().
 insert_doc(PoolName, Index, Type, Id, Doc) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) ->
@@ -259,7 +259,7 @@ insert_doc(PoolName, Index, Type, Id, Doc) when is_binary(Index) andalso is_bina
 
 -spec insert_doc(pool_name(), index(), type(), id(), doc(), params()) -> response().
 insert_doc(PoolName, Index, Type, Id, Doc, Params) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
-    pool_call(PoolName, {insert_doc, Index, Type, Id, Doc, Params}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {insert_doc, Index, Type, Id, Doc, Params}).
 
 -spec update_doc(pool_name(), index(), type(), id(), doc()) -> response().
 update_doc(PoolName, Index, Type, Id, Doc) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) ->
@@ -267,11 +267,11 @@ update_doc(PoolName, Index, Type, Id, Doc) when is_binary(Index) andalso is_bina
 
 -spec update_doc(pool_name(), index(), type(), id(), doc(), params()) -> response().
 update_doc(PoolName, Index, Type, Id, Doc, Params) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
-    pool_call(PoolName, {update_doc, Index, Type, Id, Doc, Params}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {update_doc, Index, Type, Id, Doc, Params}).
 
 -spec is_doc(pool_name(), index(), type(), id()) -> response().
 is_doc(PoolName, Index, Type, Id) when is_binary(Index), is_binary(Type) ->
-    pool_call(PoolName, {is_doc, Index, Type, Id}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {is_doc, Index, Type, Id}).
 
 -spec get_doc(pool_name(), index(), type(), id()) -> response().
 get_doc(PoolName, Index, Type, Id) when is_binary(Index), is_binary(Type) ->
@@ -279,7 +279,7 @@ get_doc(PoolName, Index, Type, Id) when is_binary(Index), is_binary(Type) ->
 
 -spec get_doc(pool_name(), index(), type(), id(), params()) -> response().
 get_doc(PoolName, Index, Type, Id, Params) when is_binary(Index), is_binary(Type), is_list(Params)->
-    pool_call(PoolName, {get_doc, Index, Type, Id, Params}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {get_doc, Index, Type, Id, Params}).
 
 -spec mget_doc(pool_name(), doc()) -> response().
 mget_doc(PoolName, Doc) when (is_binary(Doc) orelse is_list(Doc)) ->
@@ -291,21 +291,21 @@ mget_doc(PoolName, Index, Doc) when is_binary(Index) andalso (is_binary(Doc) ore
 
 -spec mget_doc(pool_name(), index(), type(), doc()) -> response().
 mget_doc(PoolName, Index, Type, Doc) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc))->
-    pool_call(PoolName, {mget_doc, Index, Type, Doc}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {mget_doc, Index, Type, Doc}).
 
 -spec delete_doc(pool_name(), index(), type(), id()) -> response().
 delete_doc(PoolName, Index, Type, Id) when is_binary(Index), is_binary(Type) ->
     delete_doc(PoolName, Index, Type, Id, []).
 -spec delete_doc(pool_name(), index(), type(), id(), params()) -> response().
 delete_doc(PoolName, Index, Type, Id, Params) when is_binary(Index), is_binary(Type), is_list(Params)->
-    pool_call(PoolName, {delete_doc, Index, Type, Id, Params}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {delete_doc, Index, Type, Id, Params}).
 
 -spec search(pool_name(), index(), type(), doc()) -> response().
 search(PoolName, Index, Type, Doc) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc))->
     search(PoolName, Index, Type, Doc, []).
 -spec search(pool_name(), index(), type(), doc(), params()) -> response().
 search(PoolName, Index, Type, Doc, Params) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) andalso is_list(Params) ->
-    pool_call(PoolName, {search, Index, Type, Doc, Params}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {search, Index, Type, Doc, Params}).
 
 -spec bulk(pool_name(), doc()) -> response().
 bulk(PoolName, Doc) when (is_binary(Doc) orelse is_list(Doc)) ->
@@ -317,7 +317,7 @@ bulk(PoolName, Index, Doc) when is_binary(Index) andalso (is_binary(Doc) orelse 
 
 -spec bulk(pool_name(), index(), type(), doc()) -> response().
 bulk(PoolName, Index, Type, Doc) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) ->
-    pool_call(PoolName, {bulk, Index, Type, Doc}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {bulk, Index, Type, Doc}).
 
 refresh(PoolName) ->
     refresh(PoolName, ?ALL).
@@ -325,7 +325,7 @@ refresh(PoolName) ->
 refresh(PoolName, Index) when is_binary(Index) ->
     refresh(PoolName, [Index]);
 refresh(PoolName, Indexes) when is_list(Indexes) ->
-    pool_call(PoolName, {refresh, Indexes}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {refresh, Indexes}).
 
 -spec flush(pool_name()) -> response().
 flush(PoolName) ->
@@ -335,7 +335,7 @@ flush(PoolName) ->
 flush(PoolName, Index) when is_binary(Index) ->
     flush(PoolName, [Index]);
 flush(PoolName, Indexes) when is_list(Indexes) ->
-    pool_call(PoolName, {flush, Indexes}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {flush, Indexes}).
 
 -spec optimize(pool_name()) -> response().
 optimize(PoolName) ->
@@ -345,7 +345,7 @@ optimize(PoolName) ->
 optimize(PoolName, Index) when is_binary(Index) ->
     optimize(PoolName, [Index]);
 optimize(PoolName, Indexes) when is_list(Indexes) ->
-    pool_call(PoolName, {optimize, Indexes}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {optimize, Indexes}).
 
 -spec segments(pool_name()) -> response().
 segments(PoolName) ->
@@ -355,7 +355,7 @@ segments(PoolName) ->
 segments(PoolName, Index) when is_binary(Index) ->
     segments(PoolName, [Index]);
 segments(PoolName, Indexes) when is_list(Indexes) ->
-    pool_call(PoolName, {segments, Indexes}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {segments, Indexes}).
 
 -spec clear_cache(pool_name()) -> response().
 clear_cache(PoolName) ->
@@ -371,50 +371,55 @@ clear_cache(PoolName, Indexes) when is_list(Indexes) ->
 clear_cache(PoolName, Index, Params) when is_binary(Index), is_list(Params) ->
     clear_cache(PoolName, [Index], Params);
 clear_cache(PoolName, Indexes, Params) when is_list(Indexes), is_list(Params) ->
-    pool_call(PoolName, {clear_cache, Indexes, Params}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {clear_cache, Indexes, Params}).
 
 
 -spec put_mapping(pool_name(), index() | [index()], type(), doc()) -> response().
 put_mapping(PoolName, Index, Type, Doc) when is_binary(Index) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) ->
     put_mapping(PoolName, [Index], Type, Doc);
 put_mapping(PoolName, Indexes, Type, Doc) when is_list(Indexes) andalso is_binary(Type) andalso (is_binary(Doc) orelse is_list(Doc)) ->
-    pool_call(PoolName, {put_mapping, Indexes, Type, Doc}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {put_mapping, Indexes, Type, Doc}).
 
 -spec get_mapping(pool_name(), index() | [index()], type()) -> response().
 get_mapping(PoolName, Index, Type) when is_binary(Index) andalso is_binary(Type) ->
     get_mapping(PoolName, [Index], Type);
 get_mapping(PoolName, Indexes, Type) when is_list(Indexes) andalso is_binary(Type) ->
-    pool_call(PoolName, {get_mapping, Indexes, Type}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {get_mapping, Indexes, Type}).
 
 -spec delete_mapping(pool_name(), index() | [index()], type()) -> response().
 delete_mapping(PoolName, Index, Type) when is_binary(Index) andalso is_binary(Type) ->
     delete_mapping(PoolName, [Index], Type);
 delete_mapping(PoolName, Indexes, Type) when is_list(Indexes) andalso is_binary(Type) ->
-    pool_call(PoolName, {delete_mapping, Indexes, Type}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {delete_mapping, Indexes, Type}).
 
 -spec aliases(pool_name(), doc()) -> response().
 aliases(PoolName, Doc) when (is_binary(Doc) orelse is_list(Doc)) ->
-    pool_call(PoolName, {aliases, Doc}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {aliases, Doc}).
 
 -spec insert_alias(pool_name(), index(), index()) -> response().
 insert_alias(PoolName, Index, Alias) when is_binary(Index) andalso is_binary(Alias) ->
-    pool_call(PoolName, {insert_alias, Index, Alias}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {insert_alias, Index, Alias}).
 -spec insert_alias(pool_name(), index(), index(), doc()) -> response().
 insert_alias(PoolName, Index, Alias, Doc) when is_binary(Index) andalso is_binary(Alias) andalso (is_binary(Doc) orelse is_list(Doc)) ->
-    pool_call(PoolName, {insert_alias, Index, Alias, Doc}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {insert_alias, Index, Alias, Doc}).
 
 -spec delete_alias(pool_name(), index(), index()) -> response().
 delete_alias(PoolName, Index, Alias) when is_binary(Index) andalso is_binary(Alias) ->
-    pool_call(PoolName, {delete_alias, Index, Alias}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {delete_alias, Index, Alias}).
 
 -spec is_alias(pool_name(), index(), index()) -> response().
 is_alias(PoolName, Index, Alias) when is_binary(Index) andalso is_binary(Alias) ->
-    pool_call(PoolName, {is_alias, Index, Alias}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {is_alias, Index, Alias}).
 
 -spec get_alias(pool_name(), index(), index()) -> response().
 get_alias(PoolName, Index, Alias) when is_binary(Index) andalso is_binary(Alias) ->
-    pool_call(PoolName, {get_alias, Index, Alias}, ?DEFAULT_TIMEOUT).
+    pool_call(PoolName, {get_alias, Index, Alias}).
 
+-spec pool_call(pool_name(), tuple()) -> response().
+pool_call(PoolName, Command) ->
+    Timeout = application:get_env(erlasticsearch, worker_timeout,
+                                  ?DEFAULT_WORKER_TIMEOUT),
+    pool_call(PoolName, Command, Timeout).
 -spec pool_call(pool_name(), tuple(), timeout()) ->
     response().
 pool_call(PoolName, Command, Timeout) ->
